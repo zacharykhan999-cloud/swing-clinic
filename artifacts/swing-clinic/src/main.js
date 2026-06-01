@@ -155,13 +155,23 @@ async function extractFrames(file, count = 6) {
 }
 
 async function callAPI(frames) {
-  const body = {
-    frames,
-    goal: state.goal,
-    averageScore: state.handicap,
-    years: state.years,
-    coach: state.coach,
-    scoringInstructions: `
+  const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
+  if (!apiKey) throw new Error('VITE_ANTHROPIC_API_KEY is not set.');
+
+  const imageContent = frames.map(b64 => ({
+    type: 'image',
+    source: { type: 'base64', media_type: 'image/jpeg', data: b64 },
+  }));
+
+  const prompt = `You are an expert golf coach and swing analyst. Analyse these frames extracted from a golfer's swing video.
+
+Golfer profile:
+- Stated average score per round: ${state.handicap}
+- Years playing: ${state.years}
+- Goal: ${state.goal}
+- Coaching style preference: ${state.coach}
+
+SCORING CALIBRATION — this is your primary anchor:
 Use the golfer's stated average score as your primary calibration. Their stated average is: ${state.handicap}. Calibrate ALL variable scores around this. A golfer who shoots 100+ cannot have variables scoring above 55. A golfer who shoots 70-80 should have variables mostly 68-82. Then adjust up or down based on what you actually see in the frames.
 
 Score ranges mapped to stated average:
@@ -173,26 +183,78 @@ Score ranges mapped to stated average:
 
 If the swing looks like a professional golfer — smooth tempo, full rotation, consistent plane, powerful impact position — score them in the 85-95 range. Do NOT give a professional swing a score under 80. Do NOT give a beginner swing a score over 55. The scores must be honest and reflect the actual quality visible in the frames.
 
-For the handicapEstimate field, use these ranges based on what you observe:
-- Tour professional: { "range": "+4 to +6", "reason": "..." }
-- Scratch golfer: { "range": "0 to 2", "reason": "..." }
-- Single figure (1-9): { "range": "3 to 9", "reason": "..." }
-- Mid handicap (10-18): { "range": "10 to 18", "reason": "..." }
-- High handicap (19-28): { "range": "19 to 28", "reason": "..." }
-- Beginner (28+): { "range": "28 to 36", "reason": "..." }
+Score these 11 variables: Backswing Plane, Downswing Plane, Hip Rotation, Shoulder Turn, Weight Transfer, Club Face at Impact, Ball Position, Grip, Follow Through, Head Stability, Tempo & Rhythm.
 
-Return JSON with: overallScore (number), variables (object with 11 keys and numeric scores), biggestKiller (string), biggestKillerDesc (string), drills (array of {name, desc, reps}), coachMessage (string), handicapEstimate (object with range and reason strings).
-`.trim(),
-  };
+For handicapEstimate, use these ranges:
+- Tour professional: "+4 to +6"
+- Scratch golfer: "0 to 2"
+- Single figure (1-9): "3 to 9"
+- Mid handicap (10-18): "10 to 18"
+- High handicap (19-28): "19 to 28"
+- Beginner (28+): "28 to 36"
 
-  const response = await fetch('/.netlify/functions/analyse', {
+Tailor the coachMessage to a ${state.coach} coaching style.
+
+Respond with ONLY valid JSON, no markdown, no explanation:
+{
+  "overallScore": <number 0-100>,
+  "variables": {
+    "Backswing Plane": <number>,
+    "Downswing Plane": <number>,
+    "Hip Rotation": <number>,
+    "Shoulder Turn": <number>,
+    "Weight Transfer": <number>,
+    "Club Face at Impact": <number>,
+    "Ball Position": <number>,
+    "Grip": <number>,
+    "Follow Through": <number>,
+    "Head Stability": <number>,
+    "Tempo & Rhythm": <number>
+  },
+  "biggestKiller": "<variable name with lowest score>",
+  "biggestKillerDesc": "<2-sentence explanation of this fault and its impact>",
+  "drills": [
+    { "name": "<drill name>", "desc": "<clear instructions>", "reps": "<e.g. 20 reps · Daily>" },
+    { "name": "<drill name>", "desc": "<clear instructions>", "reps": "<e.g. 15 swings · 3×/week>" }
+  ],
+  "coachMessage": "<personalised message in the requested coaching style>",
+  "handicapEstimate": {
+    "range": "<range string>",
+    "reason": "<one sentence explanation>"
+  }
+}`;
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-allow-browser': 'true',
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-5',
+      max_tokens: 1500,
+      messages: [{
+        role: 'user',
+        content: [
+          ...imageContent,
+          { type: 'text', text: prompt },
+        ],
+      }],
+    }),
   });
 
-  if (!response.ok) throw new Error(`API error: ${response.status}`);
-  return response.json();
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`Anthropic API error ${response.status}: ${err}`);
+  }
+
+  const data = await response.json();
+  const text = data.content?.[0]?.text ?? '';
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error('No JSON found in API response: ' + text.slice(0, 200));
+  return JSON.parse(jsonMatch[0]);
 }
 
 function getMockResults() {
@@ -266,6 +328,17 @@ function getMockResults() {
   };
 }
 
+async function showError(message) {
+  const el = document.getElementById('screen-analysing');
+  el.innerHTML = `
+    <div class="screen-inner analysing-inner" style="gap:24px">
+      <div style="font-size:3rem">⚠️</div>
+      <h1 class="heading" style="font-size:2rem;color:#ff4d4d">ANALYSIS FAILED</h1>
+      <p class="subtext" style="color:#ff9999;max-width:320px;text-align:center">${message}</p>
+      <button class="btn-primary" style="max-width:280px" onclick="location.reload()">Try Again</button>
+    </div>`;
+}
+
 async function runAnalysis() {
   const stepsPromise = animateSteps();
   let frames = [];
@@ -273,14 +346,15 @@ async function runAnalysis() {
   try {
     frames = await extractFrames(state.file);
     state.results = await callAPI(frames);
-  } catch {
-    state.results = getMockResults();
+    await stepsPromise;
+    await wait(400);
+    showScreen('screen-results');
+    renderResults(state.results);
+  } catch (err) {
+    await stepsPromise;
+    showError(err.message || 'Unknown error. Check the console for details.');
+    console.error('Analysis error:', err);
   }
-
-  await stepsPromise;
-  await wait(400);
-  showScreen('screen-results');
-  renderResults(state.results);
 }
 
 // ── Results Rendering ─────────────────────────────
