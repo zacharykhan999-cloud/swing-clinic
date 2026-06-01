@@ -4,12 +4,265 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Swing Clinic</title>
-    <meta name="description" content="Swing Clinic" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
-    <h1>Swing Clinic</h1>
+
+    <!-- SPLASH -->
+    <div id="screen-splash" class="screen active">
+      <div class="splash-bg"></div>
+      <div class="splash-content">
+        <div class="logo">
+          <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+            <circle cx="32" cy="32" r="32" fill="#00C46A" />
+            <path d="M20 44 Q28 20 44 18" stroke="#000" stroke-width="4" stroke-linecap="round" fill="none"/>
+            <circle cx="44" cy="18" r="5" fill="#000"/>
+          </svg>
+          <span class="logo-text">SWING<br/>CLINIC</span>
+        </div>
+        <p class="splash-tagline">AI-powered swing analysis<br/>built for serious golfers</p>
+        <button class="btn-primary" id="splash-cta">Get Started</button>
+      </div>
+    </div>
+
+    <!-- ONBOARDING: GOAL SELECTION -->
+    <div id="screen-goal" class="screen">
+      <div class="screen-inner">
+        <div class="step-indicator">
+          <span class="step active"></span>
+          <span class="step"></span>
+          <span class="step"></span>
+        </div>
+        <h1 class="heading">WHAT'S YOUR<br/>MAIN GOAL?</h1>
+        <p class="subtext">We'll tailor your analysis to what matters most.</p>
+        <div class="goal-grid" id="goal-grid">
+          <button class="goal-card" data-goal="Break 100">🎯 Break 100</button>
+          <button class="goal-card" data-goal="Break 90">🏌️ Break 90</button>
+          <button class="goal-card" data-goal="Break 80">🔥 Break 80</button>
+          <button class="goal-card" data-goal="Fix my slice">↪️ Fix my slice</button>
+          <button class="goal-card" data-goal="Hit longer drives">💪 Hit longer drives</button>
+          <button class="goal-card" data-goal="Be more consistent">🎯 Be more consistent</button>
+        </div>
+        <button class="btn-primary" id="goal-next" disabled>Continue</button>
+      </div>
+    </div>
+
+    <!-- PROFILE -->
+    <div id="screen-profile" class="screen">
+      <div class="screen-inner">
+        <div class="step-indicator">
+          <span class="step done"></span>
+          <span class="step active"></span>
+          <span class="step"></span>
+        </div>
+        <h1 class="heading">YOUR PROFILE</h1>
+        <p class="subtext">Help us personalise your coaching experience.</p>
+
+        <div class="form-group">
+          <label>Current Handicap</label>
+          <select id="handicap" class="select-field">
+            <option value="" disabled selected>Select handicap</option>
+            <option>36+</option>
+            <option>28–36</option>
+            <option>20–27</option>
+            <option>10–19</option>
+            <option>0–9</option>
+            <option>Scratch / Plus</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Years Playing</label>
+          <select id="years" class="select-field">
+            <option value="" disabled selected>Select years</option>
+            <option>Less than 1 year</option>
+            <option>1–3 years</option>
+            <option>3–5 years</option>
+            <option>5–10 years</option>
+            <option>10+ years</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Coaching Style</label>
+          <div class="coach-grid" id="coach-grid">
+            <button class="coach-card" data-coach="Technician">
+              <span class="coach-icon">🔬</span>
+              <span class="coach-name">Technician</span>
+              <span class="coach-desc">Data-driven, precise</span>
+            </button>
+            <button class="coach-card" data-coach="Competitor">
+              <span class="coach-icon">🏆</span>
+              <span class="coach-name">Competitor</span>
+              <span class="coach-desc">Results-focused</span>
+            </button>
+            <button class="coach-card" data-coach="Motivator">
+              <span class="coach-icon">🔥</span>
+              <span class="coach-name">Motivator</span>
+              <span class="coach-desc">Encouraging, positive</span>
+            </button>
+          </div>
+        </div>
+
+        <button class="btn-primary" id="profile-next" disabled>Continue</button>
+      </div>
+    </div>
+
+    <!-- VIDEO UPLOAD -->
+    <div id="screen-upload" class="screen">
+      <div class="screen-inner">
+        <div class="step-indicator">
+          <span class="step done"></span>
+          <span class="step done"></span>
+          <span class="step active"></span>
+        </div>
+        <h1 class="heading">UPLOAD YOUR<br/>SWING VIDEO</h1>
+        <p class="subtext">Best results: face-on or down-the-line view. MP4, MOV, or WebM.</p>
+
+        <div class="upload-zone" id="upload-zone">
+          <input type="file" id="file-input" accept="video/*" hidden />
+          <div class="upload-icon">
+            <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+              <path d="M24 8v24M14 18l10-10 10 10" stroke="#00C46A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M8 36h32" stroke="#444" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <p class="upload-text">Drag & drop your video here</p>
+          <p class="upload-sub">or</p>
+          <button class="btn-outline" id="upload-browse">Browse files</button>
+          <div id="upload-preview" class="upload-preview hidden"></div>
+        </div>
+
+        <div id="upload-file-info" class="file-info hidden">
+          <div class="file-icon">🎥</div>
+          <div class="file-details">
+            <span id="file-name" class="file-name"></span>
+            <span id="file-size" class="file-size"></span>
+          </div>
+          <button class="file-remove" id="file-remove">✕</button>
+        </div>
+
+        <button class="btn-primary" id="upload-analyse" disabled>Analyse My Swing</button>
+      </div>
+    </div>
+
+    <!-- ANALYSING -->
+    <div id="screen-analysing" class="screen">
+      <div class="screen-inner analysing-inner">
+        <div class="analysing-logo">
+          <svg width="48" height="48" viewBox="0 0 64 64" fill="none">
+            <circle cx="32" cy="32" r="32" fill="#00C46A" />
+            <path d="M20 44 Q28 20 44 18" stroke="#000" stroke-width="4" stroke-linecap="round" fill="none"/>
+            <circle cx="44" cy="18" r="5" fill="#000"/>
+          </svg>
+        </div>
+        <h1 class="heading">ANALYSING<br/>YOUR SWING</h1>
+        <p class="subtext">Our AI coach is reviewing your technique...</p>
+
+        <div class="steps-list" id="steps-list">
+          <div class="step-item" data-step="0">
+            <div class="step-status"></div>
+            <span>Uploading video</span>
+          </div>
+          <div class="step-item" data-step="1">
+            <div class="step-status"></div>
+            <span>Extracting swing frames</span>
+          </div>
+          <div class="step-item" data-step="2">
+            <div class="step-status"></div>
+            <span>Analysing club path & plane</span>
+          </div>
+          <div class="step-item" data-step="3">
+            <div class="step-status"></div>
+            <span>Calculating impact angle</span>
+          </div>
+          <div class="step-item" data-step="4">
+            <div class="step-status"></div>
+            <span>Generating personalised feedback</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RESULTS -->
+    <div id="screen-results" class="screen">
+      <div class="screen-inner results-inner">
+
+        <div class="results-header">
+          <svg width="32" height="32" viewBox="0 0 64 64" fill="none">
+            <circle cx="32" cy="32" r="32" fill="#00C46A" />
+            <path d="M20 44 Q28 20 44 18" stroke="#000" stroke-width="4" stroke-linecap="round" fill="none"/>
+            <circle cx="44" cy="18" r="5" fill="#000"/>
+          </svg>
+          <span class="results-logo-text">SWING CLINIC</span>
+        </div>
+
+        <h1 class="heading results-title">YOUR RESULTS</h1>
+
+        <!-- Score Ring -->
+        <div class="score-ring-container">
+          <svg class="score-ring" viewBox="0 0 200 200" width="200" height="200">
+            <circle class="ring-bg" cx="100" cy="100" r="85" />
+            <circle class="ring-fill" id="ring-fill" cx="100" cy="100" r="85"
+              stroke-dasharray="534" stroke-dashoffset="534" />
+          </svg>
+          <div class="score-center">
+            <span class="score-number" id="score-number">0</span>
+            <span class="score-label">/ 100</span>
+            <span class="score-sub">SWING SCORE</span>
+          </div>
+        </div>
+
+        <!-- Biggest Killer -->
+        <div class="killer-card" id="killer-card">
+          <div class="killer-badge">⚡ BIGGEST PERFORMANCE KILLER</div>
+          <h2 class="killer-title" id="killer-title">Loading...</h2>
+          <p class="killer-desc" id="killer-desc"></p>
+        </div>
+
+        <!-- 11 Variables -->
+        <div class="variables-section">
+          <h2 class="section-heading">FULL SWING BREAKDOWN</h2>
+          <div class="variables-list" id="variables-list"></div>
+        </div>
+
+        <!-- Drills -->
+        <div class="drills-section">
+          <h2 class="section-heading">YOUR DRILLS</h2>
+          <div class="drills-list" id="drills-list"></div>
+        </div>
+
+        <!-- Coach Message -->
+        <div class="coach-message-card" id="coach-message-card">
+          <div class="coach-message-header">
+            <span class="coach-avatar">🏌️</span>
+            <span class="coach-label">COACH MESSAGE</span>
+          </div>
+          <p class="coach-message-text" id="coach-message-text"></p>
+        </div>
+
+        <!-- Upgrade CTA -->
+        <div class="upgrade-card">
+          <div class="upgrade-badge">PRO</div>
+          <h2 class="upgrade-title">UNLOCK YOUR FULL<br/>COACHING PLAN</h2>
+          <ul class="upgrade-features">
+            <li>✓ Unlimited swing analyses</li>
+            <li>✓ Full 30-day drill programme</li>
+            <li>✓ Personalised video breakdowns</li>
+            <li>✓ Weekly progress tracking</li>
+          </ul>
+          <button class="btn-upgrade">Get Pro — £7.99/month</button>
+          <p class="upgrade-sub">Cancel anytime. No commitment.</p>
+        </div>
+
+        <button class="btn-ghost" id="results-restart">Analyse another swing</button>
+
+      </div>
+    </div>
+
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>
