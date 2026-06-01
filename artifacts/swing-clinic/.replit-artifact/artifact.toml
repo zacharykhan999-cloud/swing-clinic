@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Swing Clinic"
+version = "1.0.0"
+id = "artifacts/swing-clinic"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18348
+
+[services.development]
+run = "pnpm --filter @workspace/swing-clinic run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/swing-clinic", "run", "build" ]
+publicDir = "artifacts/swing-clinic/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18348"
+BASE_PATH = "/"
