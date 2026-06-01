@@ -158,9 +158,30 @@ async function callAPI(frames) {
   const body = {
     frames,
     goal: state.goal,
-    handicap: state.handicap,
+    averageScore: state.handicap,
     years: state.years,
     coach: state.coach,
+    scoringInstructions: `
+Score ranges MUST reflect actual skill level based on what you see in the video:
+
+- Tour professional / scratch golfer: overall score 85-95, variables mostly 80-95
+- Single figure handicap (1-9): overall score 72-84, variables mostly 65-82
+- Mid handicap (10-18): overall score 55-71, variables mostly 50-70
+- High handicap (19-28): overall score 38-54, variables mostly 35-55
+- Beginner (28+): overall score 25-37, variables mostly 20-45
+
+If the swing looks like a professional golfer — smooth tempo, full rotation, consistent plane, powerful impact position — score them in the 85-95 range. Do NOT give a professional swing a score under 80. Do NOT give a beginner swing a score over 55. The scores must be honest and reflect the actual quality visible in the frames.
+
+For the handicapEstimate field, use these ranges based on what you observe:
+- Tour professional: { "range": "+4 to +6", "reason": "..." }
+- Scratch golfer: { "range": "0 to 2", "reason": "..." }
+- Single figure (1-9): { "range": "3 to 9", "reason": "..." }
+- Mid handicap (10-18): { "range": "10 to 18", "reason": "..." }
+- High handicap (19-28): { "range": "19 to 28", "reason": "..." }
+- Beginner (28+): { "range": "28 to 36", "reason": "..." }
+
+Return JSON with: overallScore (number), variables (object with 11 keys and numeric scores), biggestKiller (string), biggestKillerDesc (string), drills (array of {name, desc, reps}), coachMessage (string), handicapEstimate (object with range and reason strings).
+`.trim(),
   };
 
   const response = await fetch('/.netlify/functions/analyse', {
@@ -223,17 +244,15 @@ function getMockResults() {
   const coachMsg = coachMessages[state.coach] || coachMessages.Technician;
   const killerDesc = killerDescriptions[biggestKillerKey] || `Your ${biggestKillerKey} is the area with the most room for improvement. Addressing this will have the biggest impact on your overall game.`;
 
-  const handicapEstimates = {
-    'Backswing Plane':     { range: '18–24', reason: 'Steep backswing plane and timing issues are consistent with mid-to-high handicap play.' },
-    'Downswing Plane':     { range: '16–22', reason: 'Over-the-top move and shallow path suggest a mid-handicap player still developing sequencing.' },
-    'Club Face at Impact': { range: '20–28', reason: 'Open face at impact and resulting ball flight pattern indicate a higher handicap range.' },
-    'Weight Transfer':     { range: '18–26', reason: 'Hanging back through the shot is a common trait in mid-to-high handicap golfers.' },
-  };
+  function handicapFromScore(score) {
+    if (score >= 85) return { range: '+4 to +6',  reason: 'Your tempo, rotation, and impact position are consistent with a tour-level player.' };
+    if (score >= 72) return { range: '0 to 9',    reason: 'Your swing mechanics and sequencing indicate a single-figure handicap golfer.' };
+    if (score >= 55) return { range: '10 to 18',  reason: 'Your rotation and weight transfer scores suggest a mid-handicap player with a solid base to build on.' };
+    if (score >= 38) return { range: '19 to 28',  reason: 'Key sequencing and impact issues are typical of a high-handicap player still developing consistency.' };
+    return              { range: '28 to 36',  reason: 'Fundamental movement patterns suggest a beginner still building core swing mechanics.' };
+  }
 
-  const handicapEstimate = handicapEstimates[biggestKillerKey] || {
-    range: '14–20',
-    reason: 'Your rotation and weight transfer scores suggest a mid-handicap player with a solid base to build on.',
-  };
+  const handicapEstimate = handicapFromScore(avg);
 
   return {
     overallScore: avg,
