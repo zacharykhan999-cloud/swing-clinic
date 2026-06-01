@@ -22,29 +22,30 @@ router.post("/analyse", async (req, res) => {
     source: { type: "base64", media_type: "image/jpeg", data: b64 },
   }));
 
-  const prompt = `You are an expert golf coach and swing analyst. Analyse these frames extracted from a golfer's swing video.
+  const prompt = `You are an expert PGA-level golf coach analysing a real golf swing from video frames. You are looking at 6 frames extracted from the swing sequence.
 
-Golfer profile:
-- Stated average score per round: ${averageScore}
+Analyse what you can ACTUALLY SEE in the images:
+
+Frame 1: Address position — check posture, spine angle, knee flex, ball position, grip
+Frame 2: Takeaway — check club path, wrist set, shoulder turn initiation
+Frame 3: Mid backswing — check rotation, plane, arm position
+Frame 4: Top of backswing — check shoulder turn, hip resistance, club position
+Frame 5: Impact — check weight transfer, hip clearance, head position, club face
+Frame 6: Follow through — check extension, balance, finish position
+
+Be BRUTALLY honest. If the swing looks amateur, score it 30-50. If it looks professional, score it 85-95. Do not give every swing 67. Look at the actual images and judge what you see.
+
+The golfer's stated average score is ${averageScore}. Use this to calibrate — someone who shoots 100+ should score 25-45, a scratch golfer 80-95.
+
+Golfer profile (use to personalise feedback only, not to inflate scores):
 - Years playing: ${years}
 - Goal: ${goal}
 - Coaching style preference: ${coach}
 
-SCORING CALIBRATION — this is your primary anchor:
-Use the golfer's stated average score as your primary calibration. Their stated average is: ${averageScore}. Calibrate ALL variable scores around this. A golfer who shoots 100+ cannot have variables scoring above 55. A golfer who shoots 70-80 should have variables mostly 68-82. Then adjust up or down based on what you actually see in the frames.
+Score these 11 variables based strictly on what you observe in the frames:
+Backswing Plane, Downswing Plane, Hip Rotation, Shoulder Turn, Weight Transfer, Club Face at Impact, Ball Position, Grip, Follow Through, Head Stability, Tempo & Rhythm.
 
-Score ranges mapped to stated average:
-- Stated average Under 70 (scratch/plus): overall score 85-95, variables mostly 80-95
-- Stated average 70-80: overall score 72-84, variables mostly 68-82
-- Stated average 80-90: overall score 55-71, variables mostly 50-70
-- Stated average 90-100: overall score 38-54, variables mostly 35-55
-- Stated average 100+ (Beginner): overall score 25-37, variables mostly 20-45
-
-If the swing looks like a professional golfer — smooth tempo, full rotation, consistent plane, powerful impact position — score them in the 85-95 range. Do NOT give a professional swing a score under 80. Do NOT give a beginner swing a score over 55. The scores must be honest and reflect the actual quality visible in the frames.
-
-Score these 11 variables: Backswing Plane, Downswing Plane, Hip Rotation, Shoulder Turn, Weight Transfer, Club Face at Impact, Ball Position, Grip, Follow Through, Head Stability, Tempo & Rhythm.
-
-For handicapEstimate, use these ranges based on what you observe:
+For handicapEstimate, derive from the swing quality you actually see:
 - Tour professional: "+4 to +6"
 - Scratch golfer: "0 to 2"
 - Single figure (1-9): "3 to 9"
@@ -52,7 +53,7 @@ For handicapEstimate, use these ranges based on what you observe:
 - High handicap (19-28): "19 to 28"
 - Beginner (28+): "28 to 36"
 
-Tailor the coachMessage to a ${coach} coaching style.
+Tailor the coachMessage tone to a ${coach} coaching style.
 
 Respond with ONLY valid JSON, no markdown, no explanation:
 {
@@ -71,15 +72,15 @@ Respond with ONLY valid JSON, no markdown, no explanation:
     "Tempo & Rhythm": <number>
   },
   "biggestKiller": "<variable name with lowest score>",
-  "biggestKillerDesc": "<2-sentence explanation of this fault and its impact>",
+  "biggestKillerDesc": "<2-sentence explanation of this fault and its impact on ball flight>",
   "drills": [
-    { "name": "<drill name>", "desc": "<clear instructions>", "reps": "<e.g. 20 reps · Daily>" },
-    { "name": "<drill name>", "desc": "<clear instructions>", "reps": "<e.g. 15 swings · 3×/week>" }
+    { "name": "<drill name>", "desc": "<clear step-by-step instructions>", "reps": "<e.g. 20 reps · Daily>" },
+    { "name": "<drill name>", "desc": "<clear step-by-step instructions>", "reps": "<e.g. 15 swings · 3×/week>" }
   ],
-  "coachMessage": "<personalised message in the requested coaching style>",
+  "coachMessage": "<personalised 2-3 sentence message in the requested coaching style, referencing specific things you saw>",
   "handicapEstimate": {
     "range": "<range string>",
-    "reason": "<one sentence explanation>"
+    "reason": "<one sentence referencing specific swing characteristics you observed>"
   }
 }`;
 
