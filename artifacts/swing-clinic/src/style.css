@@ -611,6 +611,10 @@ body {
   gap: 14px;
   text-align: center;
 }
+.upgrade-card--report {
+  background: linear-gradient(135deg, #0d0d1a, #080814);
+  border-color: #6366f1;
+}
 .upgrade-badge {
   display: inline-block;
   background: var(--green);
@@ -621,6 +625,10 @@ body {
   padding: 4px 12px;
   border-radius: 20px;
   align-self: center;
+}
+.upgrade-badge--report {
+  background: #6366f1;
+  color: #fff;
 }
 .upgrade-title {
   font-family: var(--font-head);
@@ -653,9 +661,17 @@ body {
   border-radius: var(--radius);
   cursor: pointer;
   transition: background 0.2s, transform 0.1s;
+  text-decoration: none;
+  display: block;
+  box-sizing: border-box;
 }
 .btn-upgrade:hover { background: var(--green-dark); }
 .btn-upgrade:active { transform: scale(0.98); }
+.btn-upgrade--report {
+  background: #6366f1;
+  color: #fff;
+}
+.btn-upgrade--report:hover { background: #4f52d4; }
 .upgrade-sub { font-size: 0.78rem; color: var(--text-muted); }
 
 .hidden { display: none !important; }
