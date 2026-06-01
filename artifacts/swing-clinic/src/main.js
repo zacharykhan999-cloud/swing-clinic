@@ -223,6 +223,18 @@ function getMockResults() {
   const coachMsg = coachMessages[state.coach] || coachMessages.Technician;
   const killerDesc = killerDescriptions[biggestKillerKey] || `Your ${biggestKillerKey} is the area with the most room for improvement. Addressing this will have the biggest impact on your overall game.`;
 
+  const handicapEstimates = {
+    'Backswing Plane':     { range: '18–24', reason: 'Steep backswing plane and timing issues are consistent with mid-to-high handicap play.' },
+    'Downswing Plane':     { range: '16–22', reason: 'Over-the-top move and shallow path suggest a mid-handicap player still developing sequencing.' },
+    'Club Face at Impact': { range: '20–28', reason: 'Open face at impact and resulting ball flight pattern indicate a higher handicap range.' },
+    'Weight Transfer':     { range: '18–26', reason: 'Hanging back through the shot is a common trait in mid-to-high handicap golfers.' },
+  };
+
+  const handicapEstimate = handicapEstimates[biggestKillerKey] || {
+    range: '14–20',
+    reason: 'Your rotation and weight transfer scores suggest a mid-handicap player with a solid base to build on.',
+  };
+
   return {
     overallScore: avg,
     variables: scores,
@@ -230,6 +242,7 @@ function getMockResults() {
     biggestKillerDesc: killerDesc,
     drills,
     coachMessage: coachMsg,
+    handicapEstimate,
   };
 }
 
@@ -273,6 +286,12 @@ function renderResults(data) {
       animateCounter(scoreNum, 0, data.overallScore, 1800);
     });
   });
+
+  // Handicap Estimate
+  if (data.handicapEstimate) {
+    document.getElementById('hc-range').textContent  = data.handicapEstimate.range + ' handicap';
+    document.getElementById('hc-reason').textContent = data.handicapEstimate.reason;
+  }
 
   // Biggest Killer
   document.getElementById('killer-title').textContent = data.biggestKiller;

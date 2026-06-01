@@ -62,15 +62,14 @@
         <p class="subtext">Help us personalise your coaching experience.</p>
 
         <div class="form-group">
-          <label>Current Handicap</label>
+          <label>What's your average score per round?</label>
           <select id="handicap" class="select-field">
-            <option value="" disabled selected>Select handicap</option>
-            <option>36+</option>
-            <option>28–36</option>
-            <option>20–27</option>
-            <option>10–19</option>
-            <option>0–9</option>
-            <option>Scratch / Plus</option>
+            <option value="" disabled selected>Select average score</option>
+            <option>100+ (Beginner)</option>
+            <option>90–100</option>
+            <option>80–90</option>
+            <option>70–80</option>
+            <option>Under 70 (Single figures)</option>
           </select>
         </div>
 
@@ -214,6 +213,13 @@
             <span class="score-label">/ 100</span>
             <span class="score-sub">SWING SCORE</span>
           </div>
+        </div>
+
+        <!-- Estimated Handicap Range -->
+        <div class="handicap-estimate-card" id="handicap-estimate-card">
+          <div class="hc-badge">🏌️ ESTIMATED HANDICAP RANGE</div>
+          <h2 class="hc-range" id="hc-range">—</h2>
+          <p class="hc-reason" id="hc-reason"></p>
         </div>
 
         <!-- Biggest Killer -->

@@ -435,6 +435,36 @@ body {
 .score-label { font-size: 0.75rem; color: var(--text-muted); font-weight: 600; }
 .score-sub   { font-size: 0.6rem; letter-spacing: 0.1em; color: var(--text-muted); margin-top: 4px; }
 
+/* Handicap Estimate Card */
+.handicap-estimate-card {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.hc-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+.hc-range {
+  font-family: var(--font-head);
+  font-size: 2rem;
+  color: var(--green);
+  letter-spacing: 0.03em;
+  line-height: 1.1;
+}
+.hc-reason {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
 /* Killer Card */
 .killer-card {
   background: linear-gradient(135deg, #1a0a00, #1e1400);
