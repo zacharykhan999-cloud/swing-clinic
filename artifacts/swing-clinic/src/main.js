@@ -162,13 +162,14 @@ async function callAPI(frames) {
     years: state.years,
     coach: state.coach,
     scoringInstructions: `
-Score ranges MUST reflect actual skill level based on what you see in the video:
+Use the golfer's stated average score as your primary calibration. Their stated average is: ${state.handicap}. Calibrate ALL variable scores around this. A golfer who shoots 100+ cannot have variables scoring above 55. A golfer who shoots 70-80 should have variables mostly 68-82. Then adjust up or down based on what you actually see in the frames.
 
-- Tour professional / scratch golfer: overall score 85-95, variables mostly 80-95
-- Single figure handicap (1-9): overall score 72-84, variables mostly 65-82
-- Mid handicap (10-18): overall score 55-71, variables mostly 50-70
-- High handicap (19-28): overall score 38-54, variables mostly 35-55
-- Beginner (28+): overall score 25-37, variables mostly 20-45
+Score ranges mapped to stated average:
+- Stated average Under 70 (scratch/plus): overall score 85-95, variables mostly 80-95
+- Stated average 70-80: overall score 72-84, variables mostly 68-82
+- Stated average 80-90: overall score 55-71, variables mostly 50-70
+- Stated average 90-100: overall score 38-54, variables mostly 35-55
+- Stated average 100+ (Beginner): overall score 25-37, variables mostly 20-45
 
 If the swing looks like a professional golfer — smooth tempo, full rotation, consistent plane, powerful impact position — score them in the 85-95 range. Do NOT give a professional swing a score under 80. Do NOT give a beginner swing a score over 55. The scores must be honest and reflect the actual quality visible in the frames.
 
