@@ -164,38 +164,126 @@ async function extractFrames(file, count = 6) {
     });
   }
 
-  // ── Video file: extract 6 evenly-spaced frames ──
+  // ── Video file: extract frames with mobile-safe seeking ──
   console.log('[extractFrames] Video file detected — extracting frames');
-  return new Promise((resolve, reject) => {
+
+  const objectUrl = URL.createObjectURL(file);
+
+  // Helper: capture whatever is currently rendered on the video element
+  function captureCurrentFrame(video, canvas, ctx) {
+    try {
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      return canvas.toDataURL('image/jpeg', 0.6).split(',')[1];
+    } catch {
+      return null;
+    }
+  }
+
+  // Helper: seek to a timestamp and wait for seeked, with a per-seek timeout.
+  // On mobile (especially iOS Safari), seeked can take 3-5 s or never arrive.
+  // After the timeout we capture whatever frame the decoder has landed on.
+  function seekTo(video, time, timeoutMs = 5000) {
+    return new Promise((resolve) => {
+      let done = false;
+      const finish = () => { if (!done) { done = true; resolve(); } };
+      const timer = setTimeout(() => {
+        console.warn(`[extractFrames] Seek timeout at ${time.toFixed(2)}s — using current frame`);
+        finish();
+      }, timeoutMs);
+      video.addEventListener('seeked', () => { clearTimeout(timer); finish(); }, { once: true });
+      video.currentTime = time;
+    });
+  }
+
+  return new Promise((resolve) => {
     const video  = document.createElement('video');
     const canvas = document.createElement('canvas');
     const ctx    = canvas.getContext('2d');
     const frames = [];
 
-    video.src = URL.createObjectURL(file);
-    video.muted = true;
+    // ── Mobile-specific attributes ──
+    video.muted        = true;
+    video.playsInline  = true;           // required for iOS autoplay / seeking
+    video.preload      = 'auto';         // load enough data to seek on mobile
+    video.setAttribute('webkit-playsinline', 'true'); // older iOS Safari
+    video.crossOrigin  = 'anonymous';
+    video.src          = objectUrl;
 
-    video.addEventListener('loadedmetadata', async () => {
+    // Overall safety net — if the whole thing hangs, return whatever we have
+    const overallTimer = setTimeout(() => {
+      console.warn(`[extractFrames] Overall timeout — returning ${frames.length} frame(s) collected so far`);
+      URL.revokeObjectURL(objectUrl);
+      resolve(frames.length > 0 ? frames : []);
+    }, 35000);
+
+    const cleanup = () => { clearTimeout(overallTimer); URL.revokeObjectURL(objectUrl); };
+
+    // Guard so onReady only runs once even if both loadeddata + loadedmetadata fire
+    let readyFired = false;
+
+    // Use loadeddata as the trigger — it fires after enough data to seek on more
+    // mobile browsers than loadedmetadata alone (which on iOS gives NaN duration).
+    const onReady = async () => {
+      if (readyFired) return;
+      readyFired = true;
       canvas.width  = 320;
       canvas.height = 180;
-      const step = video.duration / (count + 1);
-      console.log(`[extractFrames] Video duration: ${video.duration.toFixed(2)}s, extracting ${count} frames`);
+
+      const duration = video.duration;
+      const validDuration = isFinite(duration) && duration > 0;
+      console.log(`[extractFrames] duration=${duration}, validDuration=${validDuration}`);
+
+      if (!validDuration) {
+        // iOS HEVC / unusual codec: duration is Infinity or NaN.
+        // Capture a single frame at the very start as fallback.
+        console.warn('[extractFrames] Unknown duration — capturing single frame at t=0');
+        await seekTo(video, 0.1, 3000);
+        const b = captureCurrentFrame(video, canvas, ctx);
+        if (b) frames.push(b);
+        cleanup();
+        resolve(frames);
+        return;
+      }
+
+      // Seek to count evenly-spaced positions
+      const step = duration / (count + 1);
+      console.log(`[extractFrames] Extracting ${count} frames over ${duration.toFixed(2)}s (step=${step.toFixed(2)}s)`);
 
       for (let i = 1; i <= count; i++) {
-        video.currentTime = step * i;
-        await new Promise(r => video.addEventListener('seeked', r, { once: true }));
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        frames.push(canvas.toDataURL('image/jpeg', 0.6).split(',')[1]);
+        await seekTo(video, step * i, 5000);
+        const b = captureCurrentFrame(video, canvas, ctx);
+        if (b) frames.push(b);
       }
-      URL.revokeObjectURL(video.src);
-      console.log(`[extractFrames] Extracted ${frames.length} frames`);
+
+      console.log(`[extractFrames] Extracted ${frames.length}/${count} frames`);
+
+      // Fallback: if we got nothing at all, try once more at t=0
+      if (frames.length === 0) {
+        console.warn('[extractFrames] All seeks failed — falling back to t=0');
+        await seekTo(video, 0, 3000);
+        const b = captureCurrentFrame(video, canvas, ctx);
+        if (b) frames.push(b);
+      }
+
+      cleanup();
       resolve(frames);
-    });
+    };
+
+    // loadeddata fires when the browser has buffered at least the first frame
+    video.addEventListener('loadeddata', onReady, { once: true });
+
+    // loadedmetadata as secondary trigger on browsers that skip loadeddata
+    video.addEventListener('loadedmetadata', () => {
+      if (video.readyState >= 2) onReady(); // readyState 2 = HAVE_CURRENT_DATA
+    }, { once: true });
 
     video.addEventListener('error', (e) => {
-      console.error('[extractFrames] Video load error:', e);
-      reject(new Error('Could not read the video file. Try uploading a different format (MP4 works best).'));
+      console.error('[extractFrames] Video element error:', e, video.error);
+      cleanup();
+      // Don't reject — return empty array so runAnalysis shows the right message
+      resolve([]);
     });
+
     video.load();
   });
 }
