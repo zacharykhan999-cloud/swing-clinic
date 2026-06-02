@@ -697,3 +697,186 @@ body {
 .upgrade-sub { font-size: 0.78rem; color: var(--text-muted); }
 
 .hidden { display: none !important; }
+
+/* ── Bottom Nav ───────────────────────────────── */
+.bottom-nav {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  background: #111;
+  border-top: 1px solid var(--border);
+  z-index: 100;
+  align-items: stretch;
+  justify-content: space-around;
+  padding: 0 8px;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.bottom-nav.visible { display: flex; }
+
+.nav-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  flex: 1;
+  background: none;
+  border: none;
+  color: #555;
+  font-family: var(--font-body);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: color 0.2s;
+  padding: 8px 0;
+}
+.nav-tab.active { color: var(--green); }
+.nav-tab:hover:not(.active) { color: #888; }
+
+/* Nav padding for screens that sit above the nav */
+#screen-results .results-inner,
+#screen-progress .screen-inner.has-nav,
+#screen-compare .screen-inner.has-nav {
+  padding-bottom: 96px;
+}
+
+/* ── Progress Screen ────────────────────────────── */
+.progress-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 48px 0;
+  text-align: center;
+  color: var(--text-muted);
+}
+.progress-empty-icon { font-size: 3rem; }
+.progress-empty-text { font-size: 0.95rem; line-height: 1.6; max-width: 260px; }
+
+.chart-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  overflow: hidden;
+}
+.chart-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.past-analyses-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.past-analysis-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+.past-analysis-left { display: flex; flex-direction: column; gap: 3px; }
+.past-analysis-date { font-size: 0.78rem; color: var(--text-muted); }
+.past-analysis-killer { font-size: 0.82rem; color: var(--text-muted); margin-top: 2px; }
+.past-analysis-score {
+  font-family: var(--font-head);
+  font-size: 2rem;
+  color: var(--green);
+  line-height: 1;
+}
+
+/* ── Compare Screen ──────────────────────────────── */
+.compare-filters {
+  display: flex;
+  gap: 8px;
+}
+.filter-btn {
+  padding: 8px 18px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 20px;
+  color: var(--text-muted);
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+}
+.filter-btn.active {
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.compare-locked {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 48px 0;
+  text-align: center;
+}
+.compare-locked-icon { font-size: 3rem; }
+.compare-locked-text { font-size: 0.95rem; color: var(--text-muted); line-height: 1.6; max-width: 260px; }
+
+.compare-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+}
+.compare-stat {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: center;
+}
+.compare-stat-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+.compare-stat-value {
+  font-family: var(--font-head);
+  font-size: 1.2rem;
+  color: var(--green);
+  line-height: 1.1;
+}
+.compare-best-improvement {
+  background: var(--surface);
+  border: 1.5px solid var(--green);
+  border-radius: var(--radius);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.compare-best-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--green);
+  text-transform: uppercase;
+}
+.compare-best-value {
+  font-family: var(--font-head);
+  font-size: 1.5rem;
+  color: #fff;
+}
+.compare-best-sub { font-size: 0.82rem; color: var(--text-muted); }

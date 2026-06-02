@@ -9,12 +9,25 @@ const state = {
 };
 
 // ── Screen Router ─────────────────────────────────
+const NAV_SCREENS = new Set(['screen-results', 'screen-progress', 'screen-compare']);
+const NAV_TAB_MAP = { 'screen-results': 'home', 'screen-progress': 'progress', 'screen-compare': 'compare' };
+
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   const target = document.getElementById(id);
   if (target) {
     target.classList.add('active');
     window.scrollTo(0, 0);
+  }
+  const nav = document.getElementById('bottom-nav');
+  if (nav) {
+    const show = NAV_SCREENS.has(id);
+    nav.classList.toggle('visible', show);
+    if (show) {
+      document.querySelectorAll('.nav-tab').forEach(t =>
+        t.classList.toggle('active', t.dataset.tab === NAV_TAB_MAP[id])
+      );
+    }
   }
 }
 
@@ -353,6 +366,9 @@ function renderResults(data) {
 
   // Coach Message
   document.getElementById('coach-message-text').textContent = '"' + data.coachMessage + '"';
+
+  // Persist to localStorage
+  saveAnalysis(data);
 }
 
 // ── Restart ───────────────────────────────────────
@@ -392,3 +408,226 @@ function animateCounter(el, from, to, duration) {
   }
   requestAnimationFrame(tick);
 }
+
+// ── localStorage ──────────────────────────────────
+const STORAGE_KEY = 'swingclinic_analyses';
+
+function saveAnalysis(data) {
+  const all = getAnalyses();
+  all.push({
+    timestamp: new Date().toISOString(),
+    overallScore: data.overallScore,
+    variables: { ...data.variables },
+    biggestKiller: data.biggestKiller,
+    goal: state.goal,
+  });
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(all)); } catch {}
+}
+
+function getAnalyses() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
+}
+
+function filterByPeriod(analyses, period) {
+  if (period === 'all') return analyses;
+  const now = Date.now();
+  const ms = period === 'week' ? 7 * 86400000 : 30 * 86400000;
+  return analyses.filter(a => now - new Date(a.timestamp).getTime() <= ms);
+}
+
+// ── SVG Charts ────────────────────────────────────
+function buildLineChartSVG(analyses) {
+  const W = 300, H = 140;
+  const pL = 28, pR = 12, pT = 18, pB = 24;
+  const pw = W - pL - pR, ph = H - pT - pB;
+  const n = analyses.length;
+  const toX = i => pL + (n === 1 ? pw / 2 : i * pw / (n - 1));
+  const toY = s => pT + ph - (s / 100) * ph;
+  const pts = analyses.map((a, i) => ({ x: toX(i), y: toY(a.overallScore), s: a.overallScore, t: a.timestamp }));
+
+  const grids = [25, 50, 75].map(v => {
+    const y = toY(v);
+    return `<line x1="${pL}" y1="${y.toFixed(1)}" x2="${W - pR}" y2="${y.toFixed(1)}" stroke="#222" stroke-width="1" stroke-dasharray="3,3"/>
+            <text x="${pL - 4}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" font-size="9" fill="#444">${v}</text>`;
+  }).join('');
+
+  const pathD = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+  const fillD = `${pathD} L${pts[n-1].x.toFixed(1)},${(pT+ph).toFixed(1)} L${pts[0].x.toFixed(1)},${(pT+ph).toFixed(1)} Z`;
+
+  const dots = pts.map(p =>
+    `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4" fill="#00C46A" stroke="#0a0a0a" stroke-width="2"/>
+     <text x="${p.x.toFixed(1)}" y="${(p.y - 8).toFixed(1)}" text-anchor="middle" font-size="8" fill="#00C46A" font-weight="bold">${p.s}</text>`
+  ).join('');
+
+  const step = Math.max(1, Math.ceil(n / 5));
+  const dateLabels = pts.filter((_, i) => i % step === 0 || i === n - 1).map(p => {
+    const d = new Date(p.t);
+    return `<text x="${p.x.toFixed(1)}" y="${H - 4}" text-anchor="middle" font-size="8" fill="#555">${d.getDate()}/${d.getMonth() + 1}</text>`;
+  }).join('');
+
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" xmlns="http://www.w3.org/2000/svg">
+    ${grids}
+    <path d="${fillD}" fill="#00C46A0d"/>
+    <path d="${pathD}" fill="none" stroke="#00C46A" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    ${dots}${dateLabels}
+  </svg>`;
+}
+
+function buildCompareChartSVG(prev, curr) {
+  const vars = Object.keys(curr.variables);
+  const rowH = 38, pL = 104, pR = 36, W = 320;
+  const H = vars.length * rowH + 24;
+  const maxW = W - pL - pR;
+
+  const rows = vars.map((v, i) => {
+    const pScore = prev?.variables?.[v] ?? 0;
+    const cScore = curr.variables[v] ?? 0;
+    const pW = (pScore / 100) * maxW;
+    const cW = (cScore / 100) * maxW;
+    const delta = cScore - pScore;
+    const dCol = delta > 0 ? '#00C46A' : delta < 0 ? '#ef4444' : '#555';
+    const dStr = delta > 0 ? `+${delta}` : `${delta}`;
+    const y = 24 + i * rowH;
+    const name = v.length > 14 ? v.slice(0, 13) + '…' : v;
+    return `
+      <text x="${pL - 6}" y="${y + 11}" text-anchor="end" font-size="9" fill="#777">${name}</text>
+      <rect x="${pL}" y="${y}" width="${pW.toFixed(1)}" height="12" rx="3" fill="#2a2a2a"/>
+      <text x="${Math.min(pL + pW + 4, W - pR - 2).toFixed(1)}" y="${y + 10}" font-size="8" fill="#555">${pScore}</text>
+      <rect x="${pL}" y="${y + 15}" width="${cW.toFixed(1)}" height="12" rx="3" fill="#00C46A"/>
+      <text x="${Math.min(pL + cW + 4, W - pR - 2).toFixed(1)}" y="${(y + 25).toFixed(1)}" font-size="8" fill="#00C46A" font-weight="bold">${cScore}</text>
+      ${prev ? `<text x="${W - 2}" y="${y + 14}" text-anchor="end" font-size="10" fill="${dCol}" font-weight="bold">${dStr}</text>` : ''}`;
+  }).join('');
+
+  const legend = prev
+    ? `<rect x="${pL}" y="6" width="10" height="6" rx="2" fill="#2a2a2a"/>
+       <text x="${pL + 14}" y="12" font-size="8" fill="#555">Previous</text>
+       <rect x="${pL + 72}" y="6" width="10" height="6" rx="2" fill="#00C46A"/>
+       <text x="${pL + 86}" y="12" font-size="8" fill="#00C46A">Current</text>`
+    : `<text x="${pL}" y="12" font-size="8" fill="#00C46A">Latest session</text>`;
+
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" xmlns="http://www.w3.org/2000/svg">${legend}${rows}</svg>`;
+}
+
+// ── Render Progress ───────────────────────────────
+function renderProgress() {
+  const analyses = getAnalyses();
+  const container = document.getElementById('progress-content');
+
+  if (analyses.length === 0) {
+    container.innerHTML = `
+      <div class="progress-empty">
+        <div class="progress-empty-icon">📊</div>
+        <p class="progress-empty-text">Upload your first swing to start tracking your progress over time.</p>
+      </div>`;
+    return;
+  }
+
+  const fmt = ts => {
+    const d = new Date(ts);
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  };
+
+  const listHTML = analyses.slice().reverse().map(a => `
+    <div class="past-analysis-item">
+      <div class="past-analysis-left">
+        <span class="past-analysis-date">${fmt(a.timestamp)}</span>
+        <span class="past-analysis-killer">⚡ ${a.biggestKiller}</span>
+      </div>
+      <span class="past-analysis-score">${a.overallScore}</span>
+    </div>`).join('');
+
+  container.innerHTML = `
+    <div class="chart-card">
+      <div class="chart-title">Swing score over time</div>
+      ${buildLineChartSVG(analyses)}
+    </div>
+    <div class="section-heading" style="margin-top:8px">PAST ANALYSES</div>
+    <div class="past-analyses-list">${listHTML}</div>`;
+}
+
+// ── Render Compare ────────────────────────────────
+function renderCompare(period) {
+  const all = getAnalyses();
+  const filtered = filterByPeriod(all, period);
+  const container = document.getElementById('compare-content');
+
+  if (filtered.length < 2) {
+    const msg = all.length < 2
+      ? 'Complete 2 analyses to unlock comparisons.'
+      : 'Not enough sessions in this period. Try a wider time range.';
+    container.innerHTML = `
+      <div class="compare-locked">
+        <div class="compare-locked-icon">🔒</div>
+        <p class="compare-locked-text">${msg}</p>
+      </div>`;
+    return;
+  }
+
+  const prev = filtered[filtered.length - 2];
+  const curr = filtered[filtered.length - 1];
+  const vars = Object.keys(curr.variables);
+
+  // Biggest improvement
+  let bestVar = '', bestDelta = -Infinity;
+  vars.forEach(v => {
+    const delta = (curr.variables[v] ?? 0) - (prev.variables[v] ?? 0);
+    if (delta > bestDelta) { bestDelta = delta; bestVar = v; }
+  });
+
+  // This-week count
+  const weekCount = filterByPeriod(all, 'week').length;
+
+  const improvementHTML = bestDelta > 0
+    ? `<div class="compare-best-improvement">
+        <span class="compare-best-label">🏆 Biggest improvement</span>
+        <span class="compare-best-value">${bestVar}</span>
+        <span class="compare-best-sub">+${bestDelta} points since last session</span>
+       </div>`
+    : '';
+
+  container.innerHTML = `
+    <div class="compare-summary">
+      <div class="compare-stat">
+        <span class="compare-stat-label">Total</span>
+        <span class="compare-stat-value">${all.length}</span>
+      </div>
+      <div class="compare-stat">
+        <span class="compare-stat-label">This week</span>
+        <span class="compare-stat-value">${weekCount}</span>
+      </div>
+      <div class="compare-stat">
+        <span class="compare-stat-label">Score Δ</span>
+        <span class="compare-stat-value" style="color:${curr.overallScore >= prev.overallScore ? 'var(--green)' : '#ef4444'}">${curr.overallScore >= prev.overallScore ? '+' : ''}${curr.overallScore - prev.overallScore}</span>
+      </div>
+    </div>
+    ${improvementHTML}
+    <div class="chart-card">
+      <div class="chart-title">Variable comparison — previous vs current</div>
+      ${buildCompareChartSVG(prev, curr)}
+    </div>`;
+}
+
+// ── Bottom Nav ────────────────────────────────────
+document.querySelectorAll('.nav-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    const t = tab.dataset.tab;
+    if (t === 'home') {
+      showScreen('screen-results');
+    } else if (t === 'progress') {
+      showScreen('screen-progress');
+      renderProgress();
+    } else if (t === 'compare') {
+      showScreen('screen-compare');
+      renderCompare(document.querySelector('.filter-btn.active')?.dataset.filter || 'all');
+    }
+  });
+});
+
+// Compare filter buttons
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderCompare(btn.dataset.filter);
+  });
+});
