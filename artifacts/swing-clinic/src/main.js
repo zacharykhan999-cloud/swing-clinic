@@ -652,6 +652,21 @@ document.getElementById('sign-out-btn')?.addEventListener('click', async () => {
 // ── Custom headless auth form ──────────────────────
 let pendingSignIn = null;
 let pendingSignUp = null;
+let pendingStrategy = 'email_code'; // 'email_code' | 'phone_code'
+
+function detectInputType(val) {
+  const cleaned = val.replace(/[\s\-\(\)\.]/g, '');
+  return /^\+?\d{7,}$/.test(cleaned) ? 'phone' : 'email';
+}
+function normalizePhone(val) {
+  const cleaned = val.replace(/[\s\-\(\)\.]/g, '');
+  // UK domestic: 07xxx → +447xxx
+  if (/^0\d{10}$/.test(cleaned)) return '+44' + cleaned.slice(1);
+  // Already has +
+  if (cleaned.startsWith('+')) return cleaned;
+  // Assume digits-only with country code included
+  return '+' + cleaned;
+}
 
 function authError(elId, msg) {
   const el = document.getElementById(elId);
@@ -676,6 +691,7 @@ function showAuthStep(step) {
 function resetAuthForm() {
   pendingSignIn = null;
   pendingSignUp = null;
+  pendingStrategy = 'email_code';
   if (document.getElementById('auth-email')) document.getElementById('auth-email').value = '';
   if (document.getElementById('auth-code')) document.getElementById('auth-code').value = '';
   authErrorClear('auth-email-error');
@@ -685,30 +701,46 @@ function resetAuthForm() {
 
 document.getElementById('auth-email-btn')?.addEventListener('click', async () => {
   if (!clerkInstance) return;
-  const email = document.getElementById('auth-email')?.value?.trim();
-  if (!email) return authError('auth-email-error', 'Please enter your email.');
+  const raw = document.getElementById('auth-email')?.value?.trim();
+  if (!raw) return authError('auth-email-error', 'Please enter your email or phone number.');
   authErrorClear('auth-email-error');
   setAuthLoading('auth-email-btn', true);
+
+  const inputType = detectInputType(raw);
+  const identifier = inputType === 'phone' ? normalizePhone(raw) : raw;
+
   try {
-    // Try sign-in first
-    const si = await clerkInstance.client.signIn.create({ identifier: email });
+    // Try sign-in first (works for both email and phone)
+    const si = await clerkInstance.client.signIn.create({ identifier });
     pendingSignIn = si;
-    // Find email_code first factor
-    const emailFactor = si.supportedFirstFactors?.find(f => f.strategy === 'email_code');
-    if (emailFactor) {
-      await si.prepareFirstFactor({ strategy: 'email_code', emailAddressId: emailFactor.emailAddressId });
+    if (inputType === 'phone') {
+      const factor = si.supportedFirstFactors?.find(f => f.strategy === 'phone_code');
+      if (factor) await si.prepareFirstFactor({ strategy: 'phone_code', phoneNumberId: factor.phoneNumberId });
+      pendingStrategy = 'phone_code';
+    } else {
+      const factor = si.supportedFirstFactors?.find(f => f.strategy === 'email_code');
+      if (factor) await si.prepareFirstFactor({ strategy: 'email_code', emailAddressId: factor.emailAddressId });
+      pendingStrategy = 'email_code';
     }
-    document.getElementById('auth-step-email-preview').textContent = email;
+    document.getElementById('auth-step-email-preview').textContent = identifier;
     showAuthStep('code');
   } catch (err) {
-    const code = err?.errors?.[0]?.code;
-    if (code === 'form_identifier_not_found' || code === 'form_param_format_invalid') {
-      // User not found → sign up
+    const errCode = err?.errors?.[0]?.code;
+    if (errCode === 'form_identifier_not_found' || errCode === 'form_param_format_invalid') {
+      // New user → sign up
       try {
-        const su = await clerkInstance.client.signUp.create({ emailAddress: email });
+        let su;
+        if (inputType === 'phone') {
+          su = await clerkInstance.client.signUp.create({ phoneNumber: identifier });
+          await su.preparePhoneNumberVerification({ strategy: 'phone_code' });
+          pendingStrategy = 'phone_code';
+        } else {
+          su = await clerkInstance.client.signUp.create({ emailAddress: identifier });
+          await su.prepareEmailAddressVerification({ strategy: 'email_code' });
+          pendingStrategy = 'email_code';
+        }
         pendingSignUp = su;
-        await su.prepareEmailAddressVerification({ strategy: 'email_code' });
-        document.getElementById('auth-step-email-preview').textContent = email;
+        document.getElementById('auth-step-email-preview').textContent = identifier;
         showAuthStep('code');
       } catch (suErr) {
         authError('auth-email-error', suErr?.errors?.[0]?.longMessage || suErr?.message || 'Could not create account.');
@@ -730,18 +762,21 @@ document.getElementById('auth-code-btn')?.addEventListener('click', async () => 
   try {
     let result;
     if (pendingSignUp) {
-      result = await pendingSignUp.attemptEmailAddressVerification({ code });
+      result = pendingStrategy === 'phone_code'
+        ? await pendingSignUp.attemptPhoneNumberVerification({ code })
+        : await pendingSignUp.attemptEmailAddressVerification({ code });
       await clerkInstance.setActive({ session: result.createdSessionId });
     } else if (pendingSignIn) {
-      result = await pendingSignIn.attemptFirstFactor({ strategy: 'email_code', code });
+      result = await pendingSignIn.attemptFirstFactor({ strategy: pendingStrategy, code });
       await clerkInstance.setActive({ session: result.createdSessionId });
     } else {
       return;
     }
-    // setActive() is now resolved — navigate immediately rather than relying on the listener
+    // setActive() resolved — navigate directly, don't rely on listener timing
     const user = clerkInstance.user;
     syncTierFromClerk(user);
-    state.userEmail = user?.primaryEmailAddress?.emailAddress;
+    state.userEmail = user?.primaryEmailAddress?.emailAddress
+                   ?? user?.primaryPhoneNumber?.phoneNumber;
     updateUserBadge();
     resetAuthForm();
     showScreen('screen-splash');
@@ -755,9 +790,27 @@ document.getElementById('auth-code-btn')?.addEventListener('click', async () => 
 document.getElementById('auth-back-btn')?.addEventListener('click', () => {
   pendingSignIn = null;
   pendingSignUp = null;
+  pendingStrategy = 'email_code';
   authErrorClear('auth-code-error');
   showAuthStep('email');
 });
+
+// ── OAuth (Google / Apple) ─────────────────────────
+async function startOAuth(strategy) {
+  if (!clerkInstance) return;
+  authErrorClear('auth-email-error');
+  try {
+    await clerkInstance.authenticateWithRedirect({
+      strategy,
+      redirectUrl: window.location.origin,
+      redirectUrlComplete: window.location.origin,
+    });
+  } catch (err) {
+    authError('auth-email-error', err?.errors?.[0]?.longMessage || err?.message || 'Sign-in failed. Try again.');
+  }
+}
+document.getElementById('auth-google-btn')?.addEventListener('click', () => startOAuth('oauth_google'));
+document.getElementById('auth-apple-btn')?.addEventListener('click',  () => startOAuth('oauth_apple'));
 
 initClerk();
 
