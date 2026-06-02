@@ -901,7 +901,8 @@ async function startOAuth(strategy) {
   if (!clerkInstance) return;
   authErrorClear('auth-email-error');
   try {
-    await clerkInstance.authenticateWithRedirect({
+    // authenticateWithRedirect lives on the SignIn resource, not on clerkInstance directly
+    await clerkInstance.client.signIn.authenticateWithRedirect({
       strategy,
       redirectUrl: window.location.origin,
       redirectUrlComplete: window.location.origin,

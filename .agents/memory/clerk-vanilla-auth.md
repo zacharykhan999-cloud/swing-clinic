@@ -41,4 +41,17 @@ clerkInstance = window.Clerk; // singleton in v6, NOT a class
 await clerkInstance.load({ publishableKey, proxyUrl, appearance });
 ```
 
+## OAuth (Google / Apple)
+`authenticateWithRedirect` lives on the **SignIn resource**, not on `clerkInstance` directly. Call it via:
+```js
+await clerkInstance.client.signIn.authenticateWithRedirect({
+  strategy: 'oauth_google', // or 'oauth_apple'
+  redirectUrl: window.location.origin,
+  redirectUrlComplete: window.location.origin,
+});
+```
+`clerkInstance.authenticateWithRedirect(...)` does NOT exist — will throw "not a function".
+
+After the OAuth redirect completes, the page reloads. The existing `if (clerkInstance.user)` check in `initClerk()` handles navigation automatically.
+
 ## Key: `window.Clerk` in v6 is a singleton instance, NOT a constructor. Never `new window.Clerk()`.
