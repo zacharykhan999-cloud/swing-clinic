@@ -33,15 +33,25 @@ Club position at the top
 Hip clearance and weight shift at impact
 Balance and extension in follow through
 
-SCORING RULES — you must follow these exactly:
+You are analysing real golf swing frames. You must score what you actually see with no bias toward the middle.
+STRICT SCORING RULES:
 
-If the swing looks professional (smooth, full rotation, on plane): score 85-95
-Single figure handicap swing: score 72-84
-Mid handicap swing: score 55-71
-High handicap swing: score 38-54
-Beginner swing (over the top, poor rotation, losing balance): score 25-37
+A tour professional swing (silky tempo, full 90 degree shoulder turn, perfect hip clearance, balanced finish, on-plane throughout) MUST score 88-96. If you see a professional-quality swing do not score it below 88 under any circumstances.
+A scratch/low handicap swing: 75-87
+Mid handicap (10-18): 55-74
+High handicap (19-28): 38-54
+Beginner: 20-37
 
-The golfer states their average score is ${averageScore}. Weight this heavily in your scoring. Do NOT give every swing 67. Vary the scores based on what you actually see.
+CALIBRATION TEST — ask yourself before scoring:
+
+Does this swing have full shoulder rotation? (+10 points)
+Is the club on plane at the top? (+10 points)
+Is there clear weight transfer to the lead side at impact? (+10 points)
+Is the finish balanced and complete? (+10 points)
+Is the tempo smooth and consistent? (+10 points)
+
+If you answer yes to 4 or 5 of these, the score must be above 80. If yes to all 5 and the golfer is clearly a professional, score 88-96.
+The golfer's stated average score is ${averageScore}. Weight this as 40% of the score, visual assessment as 60%.
 
 Golfer profile (personalise feedback and tone only):
 - Years playing: ${years}
