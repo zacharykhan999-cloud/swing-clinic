@@ -290,17 +290,22 @@ router.post(
       // 2 — Full swing analysis via Gemini 2.5 Pro (video-native)
       console.log("[analyse-video] Requesting Gemini 2.5 Pro analysis");
       const geminiText = await analyseWithGemini(fileUri, mimetype, { goal, averageScore, years, coach }, geminiKey);
-      console.log(`[analyse-video] Gemini response (first 400 chars): ${geminiText.slice(0, 400)}`);
+      console.log(`[analyse-video] FULL GEMINI RESPONSE:\n${geminiText}`);
       const analysis = extractResult(geminiText);
-      console.log(`[analyse-video] Gemini scores — overallScore: ${analysis.overallScore}, biggestKiller: ${analysis.biggestKiller}`);
+      console.log(`[analyse-video] PARSED GEMINI RESULT:\n${JSON.stringify(analysis, null, 2)}`);
 
       // 3 — Drills + personalised coaching message via Claude
       console.log("[analyse-video] Requesting Claude drills + coaching");
       const extras = await getDrillsFromClaude(analysis, { goal, years, coach }, claudeKey);
-      console.log("[analyse-video] Claude drills complete");
+      console.log(`[analyse-video] CLAUDE DRILLS RESULT:\n${JSON.stringify(extras, null, 2)}`);
 
       // 4 — Merge and respond
-      res.json({ ...analysis, ...extras });
+      const merged = { ...analysis, ...extras };
+      console.log(`[analyse-video] FINAL MERGED RESULT:\n${JSON.stringify(merged, null, 2)}`);
+      res.set("Cache-Control", "no-store, no-cache, must-revalidate");
+      res.set("Pragma", "no-cache");
+      res.set("Surrogate-Control", "no-store");
+      res.json(merged);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error("[analyse-video] Error:", msg);

@@ -131,7 +131,8 @@ Then output your result wrapped exactly like this — no other braces outside th
 }
 </result>`;
 
-  console.log(`[analyse] Sending ${frames.length} frame(s) to Anthropic (model: claude-sonnet-4-5)`);
+  const totalPayloadKb = Math.round(frames.reduce((sum: number, f: string) => sum + f.length, 0) / 1024);
+  console.log(`[analyse] FRAMES BEING SENT: ${frames.length} frame(s), total base64 payload ~${totalPayloadKb} KB, session seed: ${sessionSeed}`);
 
   const anthropicRes = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -169,7 +170,7 @@ Then output your result wrapped exactly like this — no other braces outside th
     usage?: Record<string, number>;
   };
   const text = anthropicData.content?.[0]?.text ?? "";
-  console.log(`[analyse] Raw response (first 400 chars): ${text.slice(0, 400)}`);
+  console.log(`[analyse] FULL RAW ANTHROPIC RESPONSE:\n${text}`);
 
   // Prefer the <result>...</result> block; fall back to last JSON object in the text
   let jsonStr: string | null = null;
@@ -193,7 +194,10 @@ Then output your result wrapped exactly like this — no other braces outside th
   }
 
   const result = JSON.parse(jsonStr);
-  console.log(`[analyse] Parsed — overallScore: ${result.overallScore}, biggestKiller: ${result.biggestKiller}`);
+  console.log(`[analyse] PARSED RESULT:\n${JSON.stringify(result, null, 2)}`);
+  res.set("Cache-Control", "no-store, no-cache, must-revalidate");
+  res.set("Pragma", "no-cache");
+  res.set("Surrogate-Control", "no-store");
   res.json(result);
 });
 

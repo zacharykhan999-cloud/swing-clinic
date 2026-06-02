@@ -290,7 +290,9 @@ async function extractFrames(file, count = 12) {
 }
 
 async function callVideoAPI(file) {
-  console.log(`[callVideoAPI] Sending video "${file.name}" (${(file.size / 1024 / 1024).toFixed(1)} MB) to /api/analyse-video`);
+  const salt = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  console.log(`[callVideoAPI] salt=${salt} | video="${file.name}" | size=${(file.size / 1024 / 1024).toFixed(2)} MB | type=${file.type}`);
+
   const formData = new FormData();
   formData.append('video', file);
   formData.append('goal',         state.goal        || '');
@@ -298,25 +300,33 @@ async function callVideoAPI(file) {
   formData.append('years',        state.years       || '');
   formData.append('coach',        state.coach       || '');
 
-  // Don't set Content-Type — browser sets it with the multipart boundary
-  const response = await fetch('/api/analyse-video', { method: 'POST', body: formData });
+  // salt in URL ensures no HTTP/proxy cache hit; cache:'no-store' prevents browser cache
+  const response = await fetch(`/api/analyse-video?_salt=${salt}`, {
+    method: 'POST',
+    cache: 'no-store',
+    body: formData,
+  });
 
   console.log(`[callVideoAPI] Response status: ${response.status}`);
   if (!response.ok) {
     const err = await response.json().catch(() => ({ error: response.statusText }));
-    console.error('[callVideoAPI] Error:', err);
+    console.error('[callVideoAPI] FULL ERROR:', JSON.stringify(err, null, 2));
     throw new Error(err.error || `Server error ${response.status}`);
   }
 
   const data = await response.json();
-  console.log('[callVideoAPI] Result:', JSON.stringify({ overallScore: data.overallScore, biggestKiller: data.biggestKiller }));
+  console.log('[callVideoAPI] FULL RESPONSE:', JSON.stringify(data, null, 2));
   return data;
 }
 
 async function callAPI(frames) {
-  console.log(`[callAPI] Sending ${frames.length} frame(s) to /api/analyse`);
-  const response = await fetch('/api/analyse', {
+  const salt = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const totalKb = Math.round(frames.reduce((s, f) => s + f.length, 0) / 1024);
+  console.log(`[callAPI] salt=${salt} | frames=${frames.length} | total payload ~${totalKb} KB`);
+
+  const response = await fetch(`/api/analyse?_salt=${salt}`, {
     method: 'POST',
+    cache: 'no-store',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       frames,
@@ -330,12 +340,12 @@ async function callAPI(frames) {
   console.log(`[callAPI] Response status: ${response.status}`);
   if (!response.ok) {
     const err = await response.json().catch(() => ({ error: response.statusText }));
-    console.error('[callAPI] API error:', err);
+    console.error('[callAPI] FULL ERROR:', JSON.stringify(err, null, 2));
     throw new Error(err.error || `Server error ${response.status}`);
   }
 
   const data = await response.json();
-  console.log('[callAPI] Result:', JSON.stringify({ overallScore: data.overallScore, biggestKiller: data.biggestKiller }));
+  console.log('[callAPI] FULL RESPONSE:', JSON.stringify(data, null, 2));
   return data;
 }
 
