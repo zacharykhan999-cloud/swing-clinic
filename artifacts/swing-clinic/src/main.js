@@ -8,6 +8,7 @@ const state = {
   coach: null,
   file: null,
   results: null,
+  analyses: [],   // runtime cache — loaded from server on login
 };
 
 // ── Screen Router ─────────────────────────────────
@@ -594,7 +595,6 @@ function animateCounter(el, from, to, duration) {
 }
 
 // ── Subscription & Tier ───────────────────────────
-const SUB_KEY = 'swingclinic_sub';
 const TIER_LEVELS = { free: 0, report: 1, pro: 2 };
 const WHOP_REPORT = 'https://whop.com/swingclinic/swing-analysis-report/';
 const WHOP_PRO    = 'https://whop.com/swingclinic/swing-clinic-pro/';
@@ -602,13 +602,8 @@ const TIER_LABELS = { free: 'FREE', report: 'REPORT', pro: 'PRO' };
 const TIER_DESC   = { free: 'Basic access', report: 'Full report access', pro: 'Unlimited pro coaching' };
 
 function getTier() {
-  // Clerk publicMetadata wins (synced on login)
   const clerkTier = window._swingClinicTier;
   if (clerkTier && TIER_LEVELS[clerkTier] !== undefined) return clerkTier;
-  try {
-    const sub = JSON.parse(localStorage.getItem(SUB_KEY) || '{}');
-    if (sub.tier && TIER_LEVELS[sub.tier] !== undefined) return sub.tier;
-  } catch {}
   return 'free';
 }
 
@@ -616,11 +611,6 @@ function syncTierFromClerk(user) {
   const clerkTier = user?.publicMetadata?.tier;
   if (clerkTier && TIER_LEVELS[clerkTier] !== undefined) {
     window._swingClinicTier = clerkTier;
-    try {
-      const sub = JSON.parse(localStorage.getItem(SUB_KEY) || '{}');
-      sub.tier = clerkTier;
-      localStorage.setItem(SUB_KEY, JSON.stringify(sub));
-    } catch {}
   }
 }
 
@@ -677,17 +667,19 @@ async function initClerk() {
       syncTierFromClerk(clerkInstance.user);
       state.userEmail = clerkInstance.user.primaryEmailAddress?.emailAddress;
       updateUserBadge();
+      await loadAnalysesFromServer();
       showScreen('screen-splash');
     } else {
       showScreen('screen-auth');
     }
 
-    clerkInstance.addListener(({ user }) => {
+    clerkInstance.addListener(async ({ user }) => {
       if (user) {
         syncTierFromClerk(user);
         if (document.getElementById('screen-auth')?.classList.contains('active')) {
           state.userEmail = user.primaryEmailAddress?.emailAddress;
           updateUserBadge();
+          await loadAnalysesFromServer();
           showScreen('screen-splash');
         }
       }
@@ -703,6 +695,8 @@ async function initClerk() {
 document.getElementById('sign-out-btn')?.addEventListener('click', async () => {
   if (clerkInstance) {
     await clerkInstance.signOut();
+    state.analyses = [];
+    window._swingClinicTier = null;
     resetAuthForm();
     showScreen('screen-auth');
   }
@@ -801,6 +795,7 @@ document.getElementById('auth-code-btn')?.addEventListener('click', async () => 
     state.userEmail = user?.primaryEmailAddress?.emailAddress;
     updateUserBadge();
     resetAuthForm();
+    await loadAnalysesFromServer();
     showScreen('screen-splash');
   } catch (err) {
     authError('auth-code-error', err?.errors?.[0]?.longMessage || err?.message || 'Invalid code. Try again.');
@@ -819,23 +814,78 @@ document.getElementById('auth-back-btn')?.addEventListener('click', () => {
 
 initClerk();
 
-// ── localStorage ──────────────────────────────────
-const STORAGE_KEY = 'swingclinic_analyses';
+// ── Auth-aware fetch helper ───────────────────────
+// Attaches the Clerk session JWT so the API server can identify the user.
+async function authFetch(url, options = {}) {
+  const token = await clerkInstance?.session?.getToken();
+  const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  return fetch(url, { ...options, headers });
+}
+
+// ── Analysis history — backed by server DB ─────────
+// state.analyses is the in-memory cache (oldest-first).
+// Populated on login via loadAnalysesFromServer().
+
+async function loadAnalysesFromServer() {
+  try {
+    const res = await authFetch('/api/analyses');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const { analyses } = await res.json();
+    // Server returns newest-first (DESC); reverse so chart is oldest→newest (left→right)
+    state.analyses = (analyses || []).slice().reverse();
+    console.log(`[history] Loaded ${state.analyses.length} analyses from server`);
+  } catch (err) {
+    console.error('[history] Failed to load analyses from server:', err);
+    state.analyses = [];
+  }
+}
 
 function saveAnalysis(data) {
-  const all = getAnalyses();
-  all.push({
+  const entry = {
     timestamp: new Date().toISOString(),
     overallScore: data.overallScore,
-    variables: { ...data.variables },
+    variables:    { ...data.variables },
     biggestKiller: data.biggestKiller,
-    goal: state.goal,
-  });
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(all)); } catch {}
+    biggestKillerDesc: data.biggestKillerDesc,
+    potentialGain: data.potentialGain,
+    drills:        data.drills,
+    coachMessage:  data.coachMessage,
+    handicapEstimate: data.handicapEstimate,
+    goal:          state.goal,
+    coachStyle:    state.coach,
+  };
+  state.analyses.push(entry);
+
+  // Persist to server asynchronously (fire-and-forget, UI is already updated)
+  authFetch('/api/analyses', {
+    method: 'POST',
+    body: JSON.stringify({
+      overallScore:      entry.overallScore,
+      variables:         entry.variables,
+      biggestKiller:     entry.biggestKiller,
+      biggestKillerDesc: entry.biggestKillerDesc,
+      potentialGain:     entry.potentialGain,
+      drills:            entry.drills,
+      coachMessage:      entry.coachMessage,
+      handicapEstimate:  entry.handicapEstimate,
+      goal:              entry.goal,
+      coachStyle:        entry.coachStyle,
+    }),
+  }).then(async r => {
+    if (!r.ok) {
+      console.error('[history] Server rejected save:', await r.text().catch(() => 'unknown'));
+    } else {
+      const { id, timestamp } = await r.json();
+      entry.id = id;
+      entry.timestamp = timestamp;
+      console.log(`[history] Saved to DB (id=${id})`);
+    }
+  }).catch(err => console.error('[history] Failed to save to server:', err));
 }
 
 function getAnalyses() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
+  return state.analyses;
 }
 
 function filterByPeriod(analyses, period) {
@@ -1101,6 +1151,7 @@ document.getElementById('profile-signout-btn')?.addEventListener('click', async 
   closeProfileModal();
   if (clerkInstance) {
     await clerkInstance.signOut();
+    state.analyses = [];
     window._swingClinicTier = null;
     resetAuthForm();
     showScreen('screen-auth');

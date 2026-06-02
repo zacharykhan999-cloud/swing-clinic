@@ -1,2 +1,3 @@
 - [Clerk vanilla JS auth](clerk-vanilla-auth.md) — use headless API (client.signIn.create) not mountSignIn; load via script tag with data-clerk-publishable-key
-- [Swing Clinic stack](swing-clinic-stack.md) — key decisions: plain Vite/JS (no React), Express proxy to Anthropic, localStorage persistence, Clerk headless auth
+- [Swing Clinic stack](swing-clinic-stack.md) — key decisions: plain Vite/JS (no React), Express proxy to Anthropic, Clerk headless auth, PostgreSQL for analysis history
+- [Analysis history DB architecture](analysis-history-db.md) — hybrid in-memory + PostgreSQL pattern; state.analyses is runtime cache, loaded on login via loadAnalysesFromServer()
