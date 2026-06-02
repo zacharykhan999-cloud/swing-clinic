@@ -698,6 +698,185 @@ body {
 
 .hidden { display: none !important; }
 
+/* ── Auth Screen ─────────────────────────────── */
+.auth-inner {
+  width: 100%;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px 48px;
+  gap: 16px;
+}
+.auth-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.auth-logo-text {
+  font-family: var(--font-head);
+  font-size: 2rem;
+  line-height: 1;
+  color: #fff;
+  letter-spacing: 0.04em;
+}
+.auth-tagline {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.6;
+  margin-bottom: 8px;
+}
+.clerk-signin-container {
+  width: 100%;
+  max-width: 420px;
+}
+
+/* ── Custom Auth Form ─────────────────────────── */
+.auth-step {
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.auth-step-label {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  text-align: center;
+  margin: 0;
+}
+.auth-step-email-preview {
+  font-size: 0.95rem;
+  color: #fff;
+  text-align: center;
+  font-weight: 600;
+  margin: 0;
+}
+.auth-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.auth-input {
+  width: 100%;
+  padding: 14px 16px;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 12px;
+  color: #fff;
+  font-family: var(--font-body);
+  font-size: 1rem;
+  outline: none;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+.auth-input:focus {
+  border-color: var(--green);
+}
+.auth-input--code {
+  text-align: center;
+  font-size: 1.5rem;
+  letter-spacing: 0.3em;
+  font-weight: 700;
+}
+.auth-error {
+  font-size: 0.82rem;
+  color: #ef4444;
+  text-align: center;
+  margin: 0;
+}
+.auth-back {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  padding: 4px 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: center;
+}
+.auth-back:hover {
+  color: #fff;
+}
+
+/* ── User Bar (results screen) ────────────────── */
+.user-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0 12px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 8px;
+  gap: 8px;
+}
+.user-bar-email {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 160px;
+}
+.user-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.plan-badge {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 3px 8px;
+  border-radius: 20px;
+}
+.plan-badge--free {
+  background: #2a2a2a;
+  color: #888;
+  border: 1px solid #333;
+}
+.plan-badge--pro {
+  background: #00C46A1a;
+  color: var(--green);
+  border: 1px solid #00C46A44;
+}
+.sign-out-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 4px 0;
+  transition: color 0.2s;
+}
+.sign-out-btn:hover { color: #fff; }
+
+/* ── Variables Pro Lock ───────────────────────── */
+.variables-lock {
+  background: var(--surface);
+  border: 1.5px solid #00C46A33;
+  border-radius: var(--radius);
+  padding: 20px 16px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+.variables-lock-count {
+  font-family: var(--font-head);
+  font-size: 1.1rem;
+  color: var(--green);
+}
+.variables-lock-text {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
 /* ── Bottom Nav ───────────────────────────────── */
 .bottom-nav {
   display: none;

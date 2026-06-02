@@ -1,3 +1,5 @@
+// Clerk is loaded via <script> tag in index.html → window.Clerk
+
 // ── State ────────────────────────────────────────
 const state = {
   goal: null,
@@ -326,10 +328,14 @@ function renderResults(data) {
     document.getElementById('killer-gain').classList.remove('hidden');
   }
 
-  // Variables
+  // Variables (pro = all 11, free = first 3 + upgrade prompt)
   const varList = document.getElementById('variables-list');
   varList.innerHTML = '';
-  Object.entries(data.variables).forEach(([name, score]) => {
+  const varEntries = Object.entries(data.variables);
+  const pro = isPro();
+  const visibleVars = pro ? varEntries : varEntries.slice(0, 3);
+
+  visibleVars.forEach(([name, score]) => {
     const item = document.createElement('div');
     item.className = 'variable-item';
     item.innerHTML = `
@@ -342,6 +348,16 @@ function renderResults(data) {
       </div>`;
     varList.appendChild(item);
   });
+
+  if (!pro) {
+    const lock = document.createElement('div');
+    lock.className = 'variables-lock';
+    lock.innerHTML = `
+      <div class="variables-lock-count">+ ${varEntries.length - 3} more variables</div>
+      <p class="variables-lock-text">Upgrade to Pro to unlock all 11 swing variables and full session comparisons.</p>
+      <a class="btn-upgrade" href="https://whop.com/swingclinic/swing-clinic-pro/" target="_blank" rel="noopener">Get Pro — £14.99/month</a>`;
+    varList.appendChild(lock);
+  }
 
   // Animate bars after paint
   setTimeout(() => {
@@ -408,6 +424,197 @@ function animateCounter(el, from, to, duration) {
   }
   requestAnimationFrame(tick);
 }
+
+// ── Subscription ──────────────────────────────────
+const SUB_KEY = 'swingclinic_sub';
+
+function getSubscription() {
+  try { return JSON.parse(localStorage.getItem(SUB_KEY) || '{"status":"free"}'); } catch { return { status: 'free' }; }
+}
+
+function isPro() {
+  return getSubscription().status === 'pro';
+}
+
+function updateUserBadge() {
+  const emailEl = document.getElementById('user-badge-email');
+  if (emailEl && state.userEmail) emailEl.textContent = state.userEmail;
+  const planEl = document.getElementById('user-badge-plan');
+  if (planEl) {
+    const pro = isPro();
+    planEl.textContent = pro ? 'PRO' : 'FREE';
+    planEl.className = 'plan-badge ' + (pro ? 'plan-badge--pro' : 'plan-badge--free');
+  }
+}
+
+// ── Clerk Auth ────────────────────────────────────
+let clerkInstance = null;
+
+async function initClerk() {
+  try {
+    // Fetch publishable key from API server (which has access to Replit secrets)
+    let publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+    if (!publishableKey) {
+      const cfg = await fetch('/api/config').then(r => r.json()).catch(() => ({}));
+      publishableKey = cfg.clerkPublishableKey;
+    }
+
+    // In Clerk 6.x, the browser bundle exposes window.Clerk as a singleton instance.
+    // Call .load() on it (do NOT use new window.Clerk()).
+    clerkInstance = window.Clerk;
+    await clerkInstance.load({
+      publishableKey,
+      proxyUrl: import.meta.env.VITE_CLERK_PROXY_URL || undefined,
+      appearance: {
+        variables: {
+          colorPrimary: '#00C46A',
+          colorBackground: '#111111',
+          colorForeground: '#ffffff',
+          colorMutedForeground: '#888888',
+          colorDanger: '#ef4444',
+          colorInput: '#1a1a1a',
+          colorInputForeground: '#ffffff',
+          colorNeutral: '#333333',
+          fontFamily: '"DM Sans", sans-serif',
+          borderRadius: '12px',
+        },
+      },
+    });
+
+    if (clerkInstance.user) {
+      state.userEmail = clerkInstance.user.primaryEmailAddress?.emailAddress;
+      updateUserBadge();
+      showScreen('screen-splash');
+    } else {
+      showScreen('screen-auth');
+    }
+
+    clerkInstance.addListener(({ user }) => {
+      if (user && document.getElementById('screen-auth')?.classList.contains('active')) {
+        state.userEmail = user.primaryEmailAddress?.emailAddress;
+        updateUserBadge();
+        showScreen('screen-splash');
+      }
+    });
+  } catch (err) {
+    const msg = err?.errors?.[0]?.message || err?.message || JSON.stringify(err) || String(err);
+    console.error('Clerk init error:', msg, err);
+    // Fallback: show app without auth if Clerk fails to load
+    showScreen('screen-splash');
+  }
+}
+
+document.getElementById('sign-out-btn')?.addEventListener('click', async () => {
+  if (clerkInstance) {
+    await clerkInstance.signOut();
+    resetAuthForm();
+    showScreen('screen-auth');
+  }
+});
+
+// ── Custom headless auth form ──────────────────────
+let pendingSignIn = null;
+let pendingSignUp = null;
+
+function authError(elId, msg) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+function authErrorClear(elId) {
+  const el = document.getElementById(elId);
+  if (el) el.classList.add('hidden');
+}
+function setAuthLoading(btnId, loading) {
+  const btn = document.getElementById(btnId);
+  if (!btn) return;
+  btn.disabled = loading;
+  btn.textContent = loading ? 'Please wait…' : (btnId === 'auth-email-btn' ? 'Continue' : 'Verify');
+}
+function showAuthStep(step) {
+  document.getElementById('auth-step-email')?.classList.toggle('hidden', step !== 'email');
+  document.getElementById('auth-step-code')?.classList.toggle('hidden', step !== 'code');
+}
+function resetAuthForm() {
+  pendingSignIn = null;
+  pendingSignUp = null;
+  if (document.getElementById('auth-email')) document.getElementById('auth-email').value = '';
+  if (document.getElementById('auth-code')) document.getElementById('auth-code').value = '';
+  authErrorClear('auth-email-error');
+  authErrorClear('auth-code-error');
+  showAuthStep('email');
+}
+
+document.getElementById('auth-email-btn')?.addEventListener('click', async () => {
+  if (!clerkInstance) return;
+  const email = document.getElementById('auth-email')?.value?.trim();
+  if (!email) return authError('auth-email-error', 'Please enter your email.');
+  authErrorClear('auth-email-error');
+  setAuthLoading('auth-email-btn', true);
+  try {
+    // Try sign-in first
+    const si = await clerkInstance.client.signIn.create({ identifier: email });
+    pendingSignIn = si;
+    // Find email_code first factor
+    const emailFactor = si.supportedFirstFactors?.find(f => f.strategy === 'email_code');
+    if (emailFactor) {
+      await si.prepareFirstFactor({ strategy: 'email_code', emailAddressId: emailFactor.emailAddressId });
+    }
+    document.getElementById('auth-step-email-preview').textContent = email;
+    showAuthStep('code');
+  } catch (err) {
+    const code = err?.errors?.[0]?.code;
+    if (code === 'form_identifier_not_found' || code === 'form_param_format_invalid') {
+      // User not found → sign up
+      try {
+        const su = await clerkInstance.client.signUp.create({ emailAddress: email });
+        pendingSignUp = su;
+        await su.prepareEmailAddressVerification({ strategy: 'email_code' });
+        document.getElementById('auth-step-email-preview').textContent = email;
+        showAuthStep('code');
+      } catch (suErr) {
+        authError('auth-email-error', suErr?.errors?.[0]?.longMessage || suErr?.message || 'Could not create account.');
+      }
+    } else {
+      authError('auth-email-error', err?.errors?.[0]?.longMessage || err?.message || 'Something went wrong.');
+    }
+  } finally {
+    setAuthLoading('auth-email-btn', false);
+  }
+});
+
+document.getElementById('auth-code-btn')?.addEventListener('click', async () => {
+  if (!clerkInstance) return;
+  const code = document.getElementById('auth-code')?.value?.trim();
+  if (!code || code.length < 6) return authError('auth-code-error', 'Enter the 6-digit code.');
+  authErrorClear('auth-code-error');
+  setAuthLoading('auth-code-btn', true);
+  try {
+    let result;
+    if (pendingSignUp) {
+      result = await pendingSignUp.attemptEmailAddressVerification({ code });
+      await clerkInstance.setActive({ session: result.createdSessionId });
+    } else if (pendingSignIn) {
+      result = await pendingSignIn.attemptFirstFactor({ strategy: 'email_code', code });
+      await clerkInstance.setActive({ session: result.createdSessionId });
+    }
+    // clerkInstance.addListener will fire and navigate to splash
+  } catch (err) {
+    authError('auth-code-error', err?.errors?.[0]?.longMessage || err?.message || 'Invalid code. Try again.');
+  } finally {
+    setAuthLoading('auth-code-btn', false);
+  }
+});
+
+document.getElementById('auth-back-btn')?.addEventListener('click', () => {
+  pendingSignIn = null;
+  pendingSignUp = null;
+  authErrorClear('auth-code-error');
+  showAuthStep('email');
+});
+
+initClerk();
 
 // ── localStorage ──────────────────────────────────
 const STORAGE_KEY = 'swingclinic_analyses';
@@ -547,9 +754,20 @@ function renderProgress() {
 
 // ── Render Compare ────────────────────────────────
 function renderCompare(period) {
+  const container = document.getElementById('compare-content');
+
+  if (!isPro()) {
+    container.innerHTML = `
+      <div class="compare-locked">
+        <div class="compare-locked-icon">⭐</div>
+        <p class="compare-locked-text">Compare Sessions is a Pro feature. Upgrade to track your improvement across sessions.</p>
+        <a class="btn-upgrade" style="display:block;text-align:center;margin-top:4px" href="https://whop.com/swingclinic/swing-clinic-pro/" target="_blank" rel="noopener">Get Pro — £14.99/month</a>
+      </div>`;
+    return;
+  }
+
   const all = getAnalyses();
   const filtered = filterByPeriod(all, period);
-  const container = document.getElementById('compare-content');
 
   if (filtered.length < 2) {
     const msg = all.length < 2

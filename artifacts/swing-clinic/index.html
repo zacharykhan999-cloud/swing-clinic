@@ -11,8 +11,45 @@
   </head>
   <body>
 
+    <!-- AUTH -->
+    <div id="screen-auth" class="screen active">
+      <div class="auth-inner">
+        <div class="auth-logo">
+          <svg width="52" height="52" viewBox="0 0 64 64" fill="none">
+            <circle cx="32" cy="32" r="32" fill="#00C46A"/>
+            <path d="M20 44 Q28 20 44 18" stroke="#000" stroke-width="4" stroke-linecap="round" fill="none"/>
+            <circle cx="44" cy="18" r="5" fill="#000"/>
+          </svg>
+          <span class="auth-logo-text">SWING<br/>CLINIC</span>
+        </div>
+        <p class="auth-tagline">AI-powered swing analysis<br/>for serious golfers</p>
+
+        <!-- Step 1: Email -->
+        <div id="auth-step-email" class="auth-step">
+          <p class="auth-step-label">Sign in or create your account</p>
+          <div class="auth-field-group">
+            <input type="email" id="auth-email" class="auth-input" placeholder="your@email.com" autocomplete="email" />
+            <button class="btn-primary" id="auth-email-btn">Continue</button>
+          </div>
+          <p id="auth-email-error" class="auth-error hidden"></p>
+        </div>
+
+        <!-- Step 2: Code -->
+        <div id="auth-step-code" class="auth-step hidden">
+          <p class="auth-step-label">Enter the 6-digit code sent to</p>
+          <p class="auth-step-email-preview" id="auth-step-email-preview"></p>
+          <div class="auth-field-group">
+            <input type="text" id="auth-code" class="auth-input auth-input--code" placeholder="000000" maxlength="6" inputmode="numeric" autocomplete="one-time-code" />
+            <button class="btn-primary" id="auth-code-btn">Verify</button>
+          </div>
+          <button class="btn-ghost auth-back" id="auth-back-btn">← Use different email</button>
+          <p id="auth-code-error" class="auth-error hidden"></p>
+        </div>
+      </div>
+    </div>
+
     <!-- SPLASH -->
-    <div id="screen-splash" class="screen active">
+    <div id="screen-splash" class="screen">
       <div class="splash-bg"></div>
       <div class="splash-content">
         <div class="logo">
@@ -199,6 +236,14 @@
           <span class="results-logo-text">SWING CLINIC</span>
         </div>
 
+        <div class="user-bar">
+          <span class="user-bar-email" id="user-badge-email"></span>
+          <div class="user-bar-right">
+            <span class="plan-badge" id="user-badge-plan">FREE</span>
+            <button class="sign-out-btn" id="sign-out-btn">Sign out</button>
+          </div>
+        </div>
+
         <h1 class="heading results-title">YOUR RESULTS</h1>
 
         <!-- Score Ring -->
@@ -334,6 +379,10 @@
       </button>
     </nav>
 
+    <script
+      src="/clerk.browser.js"
+      data-clerk-publishable-key="pk_test_c3Rhci1zd2lmdC01Ni5jbGVyay5hY2NvdW50cy5kZXYk"
+    ></script>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

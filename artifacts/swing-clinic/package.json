@@ -14,5 +14,9 @@
     "@replit/vite-plugin-runtime-error-modal": "catalog:",
     "@types/node": "catalog:",
     "vite": "catalog:"
+  },
+  "dependencies": {
+    "@clerk/clerk-js": "^6.13.0",
+    "@clerk/shared": "^4.14.0"
   }
 }

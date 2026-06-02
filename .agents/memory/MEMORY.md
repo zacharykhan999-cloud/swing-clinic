@@ -1,0 +1,2 @@
+- [Clerk vanilla JS auth](clerk-vanilla-auth.md) — use headless API (client.signIn.create) not mountSignIn; load via script tag with data-clerk-publishable-key
+- [Swing Clinic stack](swing-clinic-stack.md) — key decisions: plain Vite/JS (no React), Express proxy to Anthropic, localStorage persistence, Clerk headless auth
