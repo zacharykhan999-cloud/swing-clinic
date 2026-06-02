@@ -1462,3 +1462,101 @@ body {
   height: 1px;
   background: #2a2a2a;
 }
+
+/* ── Country Code Picker ──────────────────────── */
+.auth-input-row {
+  display: flex;
+  align-items: center;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 12px;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+.auth-input-row:focus-within {
+  border-color: var(--green);
+}
+.auth-country-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 14px 10px 14px 14px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #fff;
+  font-size: 0.9rem;
+  font-family: var(--font-body);
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.auth-country-btn:hover { background: rgba(255,255,255,0.05); }
+.auth-country-chevron {
+  color: #666;
+  flex-shrink: 0;
+  transition: transform 0.18s;
+}
+.auth-country-btn[aria-expanded="true"] .auth-country-chevron {
+  transform: rotate(180deg);
+}
+.auth-country-sep {
+  width: 1px;
+  height: 20px;
+  background: #333;
+  flex-shrink: 0;
+}
+.auth-input--in-row {
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  flex: 1;
+  min-width: 0;
+  padding-left: 12px !important;
+}
+.auth-input--in-row:focus {
+  border-color: transparent !important;
+}
+
+/* ── Country Dropdown ─────────────────────────── */
+.auth-country-dropdown {
+  background: #1e1e1e;
+  border: 1px solid #2e2e2e;
+  border-radius: 12px;
+  max-height: 252px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: #333 transparent;
+  animation: fadeIn 0.15s ease;
+}
+.auth-country-dropdown.hidden { display: none; }
+.auth-country-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-family: var(--font-body);
+  color: #e0e0e0;
+  text-align: left;
+  transition: background 0.12s;
+}
+.auth-country-item:hover { background: rgba(255,255,255,0.06); }
+.auth-country-item.selected {
+  background: rgba(0,196,106,0.1);
+  color: var(--green);
+}
+.auth-country-item-flag { font-size: 1.1rem; line-height: 1; flex-shrink: 0; }
+.auth-country-item-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.auth-country-item-dial {
+  color: #666;
+  font-size: 0.82rem;
+  flex-shrink: 0;
+}
+.auth-country-item.selected .auth-country-item-dial { color: #00C46A88; }

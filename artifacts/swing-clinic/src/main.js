@@ -654,18 +654,119 @@ let pendingSignIn = null;
 let pendingSignUp = null;
 let pendingStrategy = 'email_code'; // 'email_code' | 'phone_code'
 
-function detectInputType(val) {
-  const cleaned = val.replace(/[\s\-\(\)\.]/g, '');
-  return /^\+?\d{7,}$/.test(cleaned) ? 'phone' : 'email';
+// ── Country code picker state ──────────────────────
+const COUNTRIES = [
+  { flag: '🇬🇧', name: 'United Kingdom',  dial: '+44'  },
+  { flag: '🇺🇸', name: 'United States',   dial: '+1'   },
+  { flag: '🇨🇦', name: 'Canada',          dial: '+1'   },
+  { flag: '🇦🇺', name: 'Australia',       dial: '+61'  },
+  { flag: '🇮🇪', name: 'Ireland',         dial: '+353' },
+  { flag: '🇳🇿', name: 'New Zealand',     dial: '+64'  },
+  { flag: '🇿🇦', name: 'South Africa',    dial: '+27'  },
+  { flag: '🇦🇪', name: 'UAE',             dial: '+971' },
+  { flag: '🇮🇳', name: 'India',           dial: '+91'  },
+  { flag: '🇸🇬', name: 'Singapore',       dial: '+65'  },
+  { flag: '🇭🇰', name: 'Hong Kong',       dial: '+852' },
+  { flag: '🇩🇪', name: 'Germany',         dial: '+49'  },
+  { flag: '🇫🇷', name: 'France',          dial: '+33'  },
+  { flag: '🇪🇸', name: 'Spain',           dial: '+34'  },
+  { flag: '🇮🇹', name: 'Italy',           dial: '+39'  },
+  { flag: '🇳🇱', name: 'Netherlands',     dial: '+31'  },
+  { flag: '🇧🇪', name: 'Belgium',         dial: '+32'  },
+  { flag: '🇸🇪', name: 'Sweden',          dial: '+46'  },
+  { flag: '🇳🇴', name: 'Norway',          dial: '+47'  },
+  { flag: '🇩🇰', name: 'Denmark',         dial: '+45'  },
+  { flag: '🇵🇱', name: 'Poland',          dial: '+48'  },
+  { flag: '🇨🇭', name: 'Switzerland',     dial: '+41'  },
+  { flag: '🇵🇹', name: 'Portugal',        dial: '+351' },
+  { flag: '🇯🇵', name: 'Japan',           dial: '+81'  },
+  { flag: '🇧🇷', name: 'Brazil',          dial: '+55'  },
+  { flag: '🇲🇽', name: 'Mexico',          dial: '+52'  },
+];
+let selectedDial = '+44';
+let selectedFlag = '🇬🇧';
+
+function setCountry(flag, dial) {
+  selectedDial = dial;
+  selectedFlag = flag;
+  const flagEl = document.getElementById('auth-country-flag');
+  const codeEl = document.getElementById('auth-country-code');
+  if (flagEl) flagEl.textContent = flag;
+  if (codeEl) codeEl.textContent = dial;
+  // Refresh selected state in dropdown
+  document.querySelectorAll('.auth-country-item').forEach(el => {
+    el.classList.toggle('selected', el.dataset.dial === dial && el.dataset.flag === flag);
+  });
 }
+
+function buildCountryDropdown() {
+  const dropdown = document.getElementById('auth-country-dropdown');
+  if (!dropdown || dropdown.children.length) return;
+  COUNTRIES.forEach(c => {
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'auth-country-item' + (c.dial === selectedDial && c.flag === selectedFlag ? ' selected' : '');
+    item.dataset.dial = c.dial;
+    item.dataset.flag = c.flag;
+    item.setAttribute('role', 'option');
+    item.innerHTML = `<span class="auth-country-item-flag">${c.flag}</span><span class="auth-country-item-name">${c.name}</span><span class="auth-country-item-dial">${c.dial}</span>`;
+    item.addEventListener('click', () => {
+      setCountry(c.flag, c.dial);
+      closeCountryDropdown();
+      document.getElementById('auth-email')?.focus();
+    });
+    dropdown.appendChild(item);
+  });
+}
+
+function openCountryDropdown() {
+  buildCountryDropdown();
+  const dropdown = document.getElementById('auth-country-dropdown');
+  const btn = document.getElementById('auth-country-btn');
+  dropdown?.classList.remove('hidden');
+  btn?.setAttribute('aria-expanded', 'true');
+  // Scroll selected item into view
+  const selected = dropdown?.querySelector('.selected');
+  selected?.scrollIntoView({ block: 'nearest' });
+}
+
+function closeCountryDropdown() {
+  const dropdown = document.getElementById('auth-country-dropdown');
+  const btn = document.getElementById('auth-country-btn');
+  dropdown?.classList.add('hidden');
+  btn?.setAttribute('aria-expanded', 'false');
+}
+
+document.getElementById('auth-country-btn')?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  const dropdown = document.getElementById('auth-country-dropdown');
+  if (dropdown?.classList.contains('hidden')) {
+    openCountryDropdown();
+  } else {
+    closeCountryDropdown();
+  }
+});
+
+// Close dropdown when clicking outside
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#auth-input-row') && !e.target.closest('#auth-country-dropdown')) {
+    closeCountryDropdown();
+  }
+});
+
+// ── Phone/Email detection & normalisation ──────────
+function detectInputType(val) {
+  if (val.includes('@')) return 'email';
+  // Digits with optional spacing/punctuation → phone
+  const digits = val.replace(/[\s\-\(\)\+\.]/g, '');
+  return /^\d{5,}$/.test(digits) ? 'phone' : 'email';
+}
+
 function normalizePhone(val) {
-  const cleaned = val.replace(/[\s\-\(\)\.]/g, '');
-  // UK domestic: 07xxx → +447xxx
-  if (/^0\d{10}$/.test(cleaned)) return '+44' + cleaned.slice(1);
-  // Already has +
-  if (cleaned.startsWith('+')) return cleaned;
-  // Assume digits-only with country code included
-  return '+' + cleaned;
+  const digits = val.replace(/\D/g, '');
+  // Strip leading 0 (domestic format, e.g. UK 07911…)
+  const local = digits.startsWith('0') ? digits.slice(1) : digits;
+  return selectedDial + local;
 }
 
 function authError(elId, msg) {
