@@ -297,16 +297,21 @@ function getBarColor(score) {
   return '#ef4444';
 }
 
+function gateCard(html) {
+  return `<div class="upgrade-gate-card">${html}</div>`;
+}
+
 function renderResults(data) {
-  // Score Ring
+  const hasReport = hasReportAccess();
+  const hasPro    = hasProAccess();
+
+  // ── Score Ring (always) ─────────────────────────
   const circumference = 2 * Math.PI * 85;
   const offset = circumference - (data.overallScore / 100) * circumference;
   const ring = document.getElementById('ring-fill');
   const scoreNum = document.getElementById('score-number');
-
   ring.style.strokeDasharray = circumference;
   ring.style.strokeDashoffset = circumference;
-
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       ring.style.strokeDashoffset = offset;
@@ -314,13 +319,28 @@ function renderResults(data) {
     });
   });
 
-  // Handicap Estimate
-  if (data.handicapEstimate) {
-    document.getElementById('hc-range').textContent  = data.handicapEstimate.range + ' handicap';
-    document.getElementById('hc-reason').textContent = data.handicapEstimate.reason;
+  // ── Handicap Estimate (Report+) ─────────────────
+  const hcCard = document.getElementById('handicap-estimate-card');
+  if (hasReport && data.handicapEstimate) {
+    hcCard.removeAttribute('data-locked');
+    hcCard.innerHTML = `
+      <div class="hc-badge">🏌️ ESTIMATED HANDICAP RANGE</div>
+      <h2 class="hc-range">${data.handicapEstimate.range} handicap</h2>
+      <p class="hc-reason">${data.handicapEstimate.reason}</p>`;
+    hcCard.classList.remove('hidden');
+  } else if (!hasReport) {
+    hcCard.setAttribute('data-locked', '');
+    hcCard.innerHTML = gateCard(`
+      <div class="gate-icon">🏌️</div>
+      <div class="gate-title">ESTIMATED HANDICAP RANGE</div>
+      <p class="gate-text">Unlock your handicap estimate, full variable breakdown, and improvement forecast.</p>
+      <a class="gate-btn gate-btn--report" href="${WHOP_REPORT}" target="_blank" rel="noopener">Get Report — £7.99</a>
+      <div class="gate-or">or</div>
+      <a class="gate-btn gate-btn--pro" href="${WHOP_PRO}" target="_blank" rel="noopener">Go Pro — £14.99/mo</a>`);
+    hcCard.classList.remove('hidden');
   }
 
-  // Biggest Killer
+  // ── Biggest Killer (always) ─────────────────────
   document.getElementById('killer-title').textContent = data.biggestKiller;
   document.getElementById('killer-desc').textContent  = data.biggestKillerDesc || '';
   if (data.potentialGain) {
@@ -328,12 +348,11 @@ function renderResults(data) {
     document.getElementById('killer-gain').classList.remove('hidden');
   }
 
-  // Variables (pro = all 11, free = first 3 + upgrade prompt)
+  // ── Variables (Report+ = all 11, Free = first 3 + gate) ──
   const varList = document.getElementById('variables-list');
   varList.innerHTML = '';
   const varEntries = Object.entries(data.variables);
-  const pro = isPro();
-  const visibleVars = pro ? varEntries : varEntries.slice(0, 3);
+  const visibleVars = hasReport ? varEntries : varEntries.slice(0, 3);
 
   visibleVars.forEach(([name, score]) => {
     const item = document.createElement('div');
@@ -349,27 +368,31 @@ function renderResults(data) {
     varList.appendChild(item);
   });
 
-  if (!pro) {
+  if (!hasReport) {
     const lock = document.createElement('div');
-    lock.className = 'variables-lock';
-    lock.innerHTML = `
-      <div class="variables-lock-count">+ ${varEntries.length - 3} more variables</div>
-      <p class="variables-lock-text">Upgrade to Pro to unlock all 11 swing variables and full session comparisons.</p>
-      <a class="btn-upgrade" href="https://whop.com/swingclinic/swing-clinic-pro/" target="_blank" rel="noopener">Get Pro — £14.99/month</a>`;
-    varList.appendChild(lock);
+    lock.innerHTML = gateCard(`
+      <div class="gate-icon">📊</div>
+      <div class="gate-title">+ ${varEntries.length - 3} MORE VARIABLES</div>
+      <p class="gate-text">See the full 11-variable breakdown with coaching notes on every area of your swing.</p>
+      <a class="gate-btn gate-btn--report" href="${WHOP_REPORT}" target="_blank" rel="noopener">Get Report — £7.99</a>
+      <div class="gate-or">or</div>
+      <a class="gate-btn gate-btn--pro" href="${WHOP_PRO}" target="_blank" rel="noopener">Go Pro — £14.99/mo</a>`);
+    varList.appendChild(lock.firstElementChild);
   }
 
-  // Animate bars after paint
   setTimeout(() => {
     varList.querySelectorAll('.variable-bar-fill').forEach(bar => {
       bar.style.width = bar.dataset.score + '%';
     });
   }, 100);
 
-  // Drills
+  // ── Drills (Free = 2, Report+ = all) ───────────
   const drillsList = document.getElementById('drills-list');
   drillsList.innerHTML = '';
-  (data.drills || []).forEach((drill, i) => {
+  const allDrills = data.drills || [];
+  const drillsToShow = hasReport ? allDrills : allDrills.slice(0, 2);
+
+  drillsToShow.forEach((drill, i) => {
     const card = document.createElement('div');
     card.className = 'drill-card';
     card.innerHTML = `
@@ -380,11 +403,97 @@ function renderResults(data) {
     drillsList.appendChild(card);
   });
 
-  // Coach Message
+  if (!hasReport && allDrills.length > 2) {
+    const lock = document.createElement('div');
+    lock.innerHTML = gateCard(`
+      <div class="gate-icon">🏋️</div>
+      <div class="gate-title">+ ${allDrills.length - 2} MORE DRILLS</div>
+      <p class="gate-text">Get your full personalised drill programme and 2-week improvement plan.</p>
+      <a class="gate-btn gate-btn--report" href="${WHOP_REPORT}" target="_blank" rel="noopener">Get Report — £7.99</a>`);
+    drillsList.appendChild(lock.firstElementChild);
+  }
+
+  // ── Improvement Forecast (Report+) ─────────────
+  const forecastCard = document.getElementById('improvement-forecast-card');
+  if (hasReport) {
+    renderImprovementForecast(data);
+    forecastCard.classList.remove('hidden');
+  } else {
+    forecastCard.classList.add('hidden');
+  }
+
+  // ── PDF Download (Report+) ──────────────────────
+  const pdfSection = document.getElementById('pdf-download-section');
+  if (pdfSection) pdfSection.classList.toggle('hidden', !hasReport);
+
+  // ── Coach Message (always) ──────────────────────
   document.getElementById('coach-message-text').textContent = '"' + data.coachMessage + '"';
 
-  // Persist to localStorage
+  // ── Coaching History (Pro+) ─────────────────────
+  const historySection = document.getElementById('coaching-history-section');
+  if (hasPro) {
+    renderCoachingHistory();
+    historySection.classList.remove('hidden');
+  } else {
+    historySection.classList.add('hidden');
+  }
+
+  // ── Upgrade Cards ────────────────────────────────
+  const reportCard = document.querySelector('.upgrade-card--report');
+  const proCard    = document.querySelector('.upgrade-card--pro');
+  if (reportCard) reportCard.style.display = hasReport ? 'none' : '';
+  if (proCard)    proCard.style.display    = hasPro    ? 'none' : '';
+
   saveAnalysis(data);
+}
+
+function renderImprovementForecast(data) {
+  const el = document.getElementById('forecast-timeline');
+  if (!el) return;
+  const score = data.overallScore;
+  const headroom = 100 - score;
+  const w4  = Math.min(score + Math.round(headroom * 0.12), 99);
+  const w8  = Math.min(score + Math.round(headroom * 0.22), 99);
+  const w12 = Math.min(score + Math.round(headroom * 0.32), 99);
+
+  el.innerHTML = [
+    { label: '4 weeks',  val: w4  },
+    { label: '8 weeks',  val: w8  },
+    { label: '12 weeks', val: w12 },
+  ].map(({ label, val }) => `
+    <div class="forecast-row">
+      <span class="forecast-week">${label}</span>
+      <div class="forecast-bar-wrap">
+        <div class="forecast-bar-track">
+          <div class="forecast-bar-base" style="width:${score}%"></div>
+          <div class="forecast-bar-gain" style="width:${val}%"></div>
+        </div>
+      </div>
+      <span class="forecast-score">${val}<span class="forecast-delta">+${val - score}</span></span>
+    </div>`).join('');
+}
+
+function renderCoachingHistory() {
+  const el = document.getElementById('coaching-history-list');
+  if (!el) return;
+  const analyses = getAnalyses();
+  if (analyses.length === 0) {
+    el.innerHTML = '<p class="coaching-history-empty">Complete your first analysis to start building your coaching history.</p>';
+    return;
+  }
+  const fmt = ts => new Date(ts).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  el.innerHTML = analyses.slice().reverse().slice(0, 10).map(a => `
+    <div class="coaching-history-item">
+      <div class="coaching-history-left">
+        <span class="coaching-history-date">${fmt(a.timestamp)}</span>
+        <span class="coaching-history-goal">${a.goal || 'Analysis'}</span>
+        <span class="coaching-history-killer">⚡ ${a.biggestKiller}</span>
+      </div>
+      <div class="coaching-history-right">
+        <span class="coaching-history-score" style="color:${getBarColor(a.overallScore)}">${a.overallScore}</span>
+        <span class="coaching-history-label">score</span>
+      </div>
+    </div>`).join('');
 }
 
 // ── Restart ───────────────────────────────────────
@@ -425,25 +534,49 @@ function animateCounter(el, from, to, duration) {
   requestAnimationFrame(tick);
 }
 
-// ── Subscription ──────────────────────────────────
+// ── Subscription & Tier ───────────────────────────
 const SUB_KEY = 'swingclinic_sub';
+const TIER_LEVELS = { free: 0, report: 1, pro: 2 };
+const WHOP_REPORT = 'https://whop.com/swingclinic/swing-analysis-report/';
+const WHOP_PRO    = 'https://whop.com/swingclinic/swing-clinic-pro/';
+const TIER_LABELS = { free: 'FREE', report: 'REPORT', pro: 'PRO' };
+const TIER_DESC   = { free: 'Basic access', report: 'Full report access', pro: 'Unlimited pro coaching' };
 
-function getSubscription() {
-  try { return JSON.parse(localStorage.getItem(SUB_KEY) || '{"status":"free"}'); } catch { return { status: 'free' }; }
+function getTier() {
+  // Clerk publicMetadata wins (synced on login)
+  const clerkTier = window._swingClinicTier;
+  if (clerkTier && TIER_LEVELS[clerkTier] !== undefined) return clerkTier;
+  try {
+    const sub = JSON.parse(localStorage.getItem(SUB_KEY) || '{}');
+    if (sub.tier && TIER_LEVELS[sub.tier] !== undefined) return sub.tier;
+  } catch {}
+  return 'free';
 }
 
-function isPro() {
-  return getSubscription().status === 'pro';
+function syncTierFromClerk(user) {
+  const clerkTier = user?.publicMetadata?.tier;
+  if (clerkTier && TIER_LEVELS[clerkTier] !== undefined) {
+    window._swingClinicTier = clerkTier;
+    try {
+      const sub = JSON.parse(localStorage.getItem(SUB_KEY) || '{}');
+      sub.tier = clerkTier;
+      localStorage.setItem(SUB_KEY, JSON.stringify(sub));
+    } catch {}
+  }
 }
+
+function hasReportAccess() { return TIER_LEVELS[getTier()] >= TIER_LEVELS.report; }
+function hasProAccess()    { return TIER_LEVELS[getTier()] >= TIER_LEVELS.pro; }
+function isPro()           { return hasProAccess(); }
 
 function updateUserBadge() {
+  const tier = getTier();
   const emailEl = document.getElementById('user-badge-email');
   if (emailEl && state.userEmail) emailEl.textContent = state.userEmail;
   const planEl = document.getElementById('user-badge-plan');
   if (planEl) {
-    const pro = isPro();
-    planEl.textContent = pro ? 'PRO' : 'FREE';
-    planEl.className = 'plan-badge ' + (pro ? 'plan-badge--pro' : 'plan-badge--free');
+    planEl.textContent = TIER_LABELS[tier] || 'FREE';
+    planEl.className = 'plan-badge plan-badge--' + tier;
   }
 }
 
@@ -482,6 +615,7 @@ async function initClerk() {
     });
 
     if (clerkInstance.user) {
+      syncTierFromClerk(clerkInstance.user);
       state.userEmail = clerkInstance.user.primaryEmailAddress?.emailAddress;
       updateUserBadge();
       showScreen('screen-splash');
@@ -490,10 +624,13 @@ async function initClerk() {
     }
 
     clerkInstance.addListener(({ user }) => {
-      if (user && document.getElementById('screen-auth')?.classList.contains('active')) {
-        state.userEmail = user.primaryEmailAddress?.emailAddress;
-        updateUserBadge();
-        showScreen('screen-splash');
+      if (user) {
+        syncTierFromClerk(user);
+        if (document.getElementById('screen-auth')?.classList.contains('active')) {
+          state.userEmail = user.primaryEmailAddress?.emailAddress;
+          updateUserBadge();
+          showScreen('screen-splash');
+        }
       }
     });
   } catch (err) {
@@ -756,12 +893,12 @@ function renderProgress() {
 function renderCompare(period) {
   const container = document.getElementById('compare-content');
 
-  if (!isPro()) {
+  if (!hasProAccess()) {
     container.innerHTML = `
       <div class="compare-locked">
-        <div class="compare-locked-icon">⭐</div>
-        <p class="compare-locked-text">Compare Sessions is a Pro feature. Upgrade to track your improvement across sessions.</p>
-        <a class="btn-upgrade" style="display:block;text-align:center;margin-top:4px" href="https://whop.com/swingclinic/swing-clinic-pro/" target="_blank" rel="noopener">Get Pro — £14.99/month</a>
+        <div class="compare-locked-icon">📊</div>
+        <p class="compare-locked-text">Session comparison charts are a Pro exclusive. Upgrade to visualise your improvement across every swing session.</p>
+        <a class="btn-upgrade" style="display:block;text-align:center;margin-top:8px" href="${WHOP_PRO}" target="_blank" rel="noopener">Get Pro — £14.99/month</a>
       </div>`;
     return;
   }
@@ -848,4 +985,71 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
     btn.classList.add('active');
     renderCompare(btn.dataset.filter);
   });
+});
+
+// ── Profile Modal ──────────────────────────────────
+function openProfileModal() {
+  const tier = getTier();
+  const overlay = document.getElementById('profile-overlay');
+  const emailEl = document.getElementById('profile-sheet-email');
+  const planBadge = document.getElementById('profile-sheet-plan-badge');
+  const planLabel = document.getElementById('profile-sheet-plan-label');
+  const manageLink = document.getElementById('profile-manage-link');
+
+  if (emailEl) emailEl.textContent = state.userEmail || '—';
+  if (planBadge) {
+    planBadge.textContent = TIER_LABELS[tier] || 'FREE';
+    planBadge.className = 'plan-badge plan-badge--' + tier;
+  }
+  if (planLabel) planLabel.textContent = TIER_DESC[tier] || 'Basic access';
+
+  if (manageLink) {
+    if (tier === 'pro') {
+      manageLink.href = 'https://whop.com/hub/';
+      manageLink.textContent = 'Manage Pro subscription →';
+    } else if (tier === 'report') {
+      manageLink.href = WHOP_PRO;
+      manageLink.textContent = 'Upgrade to Pro — £14.99/mo →';
+    } else {
+      manageLink.href = WHOP_REPORT;
+      manageLink.textContent = 'Unlock Report — £7.99 →';
+    }
+  }
+
+  overlay?.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeProfileModal() {
+  document.getElementById('profile-overlay')?.classList.add('hidden');
+  document.body.style.overflow = '';
+}
+
+document.getElementById('profile-btn')?.addEventListener('click', openProfileModal);
+
+document.getElementById('profile-overlay')?.addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeProfileModal();
+});
+
+document.getElementById('profile-signout-btn')?.addEventListener('click', async () => {
+  closeProfileModal();
+  if (clerkInstance) {
+    await clerkInstance.signOut();
+    window._swingClinicTier = null;
+    resetAuthForm();
+    showScreen('screen-auth');
+  }
+});
+
+// ── PDF Download ───────────────────────────────────
+document.getElementById('pdf-download-btn')?.addEventListener('click', () => {
+  const btn = document.getElementById('pdf-download-btn');
+  if (!btn) return;
+  btn.textContent = 'Preparing your report…';
+  btn.disabled = true;
+  setTimeout(() => {
+    window.print();
+    btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download Full Report PDF`;
+    btn.disabled = false;
+  }, 500);
 });

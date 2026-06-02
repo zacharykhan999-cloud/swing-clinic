@@ -1059,3 +1059,359 @@ body {
   color: #fff;
 }
 .compare-best-sub { font-size: 0.82rem; color: var(--text-muted); }
+
+/* ── Profile Button (splash) ─────────────────── */
+.profile-btn {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s;
+  z-index: 10;
+}
+.profile-btn:hover { background: rgba(255,255,255,0.14); }
+#screen-splash { position: relative; }
+
+/* ── Profile Modal (bottom sheet) ───────────── */
+.profile-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.65);
+  z-index: 200;
+  display: flex;
+  align-items: flex-end;
+  animation: fadeIn 0.2s ease;
+}
+.profile-overlay.hidden { display: none; }
+.profile-sheet {
+  width: 100%;
+  background: #161616;
+  border-top: 1px solid #2a2a2a;
+  border-radius: 20px 20px 0 0;
+  padding: 12px 24px 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  animation: slideUp 0.28s cubic-bezier(0.32,0.72,0,1);
+}
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+.profile-sheet-handle {
+  width: 36px;
+  height: 4px;
+  background: #333;
+  border-radius: 2px;
+  margin-bottom: 4px;
+}
+.profile-sheet-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #00C46A1a;
+  border: 1.5px solid #00C46A44;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--green);
+}
+.profile-sheet-email {
+  font-size: 0.95rem;
+  color: #fff;
+  font-weight: 500;
+}
+.profile-sheet-plan-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.profile-sheet-plan-label {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+.profile-sheet-divider {
+  width: 100%;
+  height: 1px;
+  background: #222;
+  margin: 4px 0;
+}
+.profile-manage-link {
+  font-size: 0.88rem;
+  color: var(--green);
+  font-weight: 600;
+  text-decoration: none;
+  padding: 8px 0;
+  width: 100%;
+  text-align: center;
+}
+.profile-manage-link:hover { opacity: 0.8; }
+.profile-signout-btn {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  padding: 6px 0;
+  width: 100%;
+  text-align: center;
+}
+
+/* ── Tier Badges ──────────────────────────────── */
+.plan-badge--report {
+  background: #1a2a1a;
+  color: #22c55e;
+  border: 1px solid #22c55e44;
+}
+.plan-badge--pro {
+  background: #1a1a2e;
+  color: #818cf8;
+  border: 1px solid #818cf844;
+}
+
+/* ── Upgrade Gate Cards (inline) ────────────── */
+.upgrade-gate-card {
+  background: var(--surface);
+  border: 1.5px solid #00C46A22;
+  border-radius: var(--radius);
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+  margin-top: 4px;
+}
+.gate-icon {
+  font-size: 1.8rem;
+}
+.gate-title {
+  font-family: var(--font-head);
+  font-size: 1rem;
+  color: #fff;
+  letter-spacing: 0.05em;
+}
+.gate-text {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.55;
+  max-width: 280px;
+  margin: 0;
+}
+.gate-or {
+  font-size: 0.75rem;
+  color: #444;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.gate-btn {
+  display: block;
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-align: center;
+  text-decoration: none;
+  transition: opacity 0.2s;
+}
+.gate-btn:hover { opacity: 0.85; }
+.gate-btn--report {
+  background: var(--green);
+  color: #000;
+}
+.gate-btn--pro {
+  background: transparent;
+  border: 1px solid #818cf8;
+  color: #818cf8;
+}
+
+/* ── Improvement Forecast ─────────────────── */
+.improvement-forecast-card {
+  background: var(--surface);
+  border: 1.5px solid #00C46A33;
+  border-radius: var(--radius);
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.forecast-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--green);
+  text-transform: uppercase;
+}
+.forecast-subtitle {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin: -8px 0 0;
+  line-height: 1.5;
+}
+.forecast-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.forecast-row {
+  display: grid;
+  grid-template-columns: 72px 1fr 56px;
+  align-items: center;
+  gap: 10px;
+}
+.forecast-week {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+.forecast-bar-wrap { width: 100%; }
+.forecast-bar-track {
+  position: relative;
+  height: 10px;
+  background: #1e1e1e;
+  border-radius: 5px;
+  overflow: hidden;
+}
+.forecast-bar-base {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  background: #2a2a2a;
+  border-radius: 5px;
+  transition: width 0.8s ease;
+}
+.forecast-bar-gain {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  background: linear-gradient(90deg, #00C46A44, #00C46A);
+  border-radius: 5px;
+  transition: width 0.8s ease 0.2s;
+}
+.forecast-score {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--green);
+  text-align: right;
+}
+.forecast-delta {
+  font-size: 0.7rem;
+  color: #00C46A88;
+  margin-left: 2px;
+  font-weight: 400;
+}
+
+/* ── PDF Download ─────────────────────────── */
+.pdf-download-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.btn-pdf-download {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 14px 20px;
+  background: transparent;
+  border: 1.5px solid var(--green);
+  border-radius: 12px;
+  color: var(--green);
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+.btn-pdf-download:hover {
+  background: #00C46A15;
+}
+.pdf-download-sub {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* ── Coaching History ──────────────────────── */
+.coaching-history-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.coaching-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.coaching-history-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--surface);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  gap: 12px;
+}
+.coaching-history-left {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.coaching-history-date {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+.coaching-history-goal {
+  font-size: 0.85rem;
+  color: #fff;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.coaching-history-killer {
+  font-size: 0.75rem;
+  color: #f59e0b;
+}
+.coaching-history-right {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+}
+.coaching-history-score {
+  font-family: var(--font-head);
+  font-size: 1.6rem;
+  line-height: 1;
+}
+.coaching-history-label {
+  font-size: 0.62rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.coaching-history-empty {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 16px 0;
+}
+
+/* ── Upgrade Cards (bottom) ────────────────── */
+.upgrade-card--pro .upgrade-badge {
+  background: #1a1a2e;
+  color: #818cf8;
+  border: 1px solid #818cf844;
+}
+.btn-upgrade--pro {
+  background: linear-gradient(135deg, #4f46e5, #818cf8);
+}
