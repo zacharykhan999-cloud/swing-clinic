@@ -17,13 +17,32 @@ router.post("/analyse", async (req, res) => {
     coach: string;
   };
 
-  const imageContent = frames.map((b64: string) => ({
-    type: "image",
-    source: { type: "base64", media_type: "image/jpeg", data: b64 },
-  }));
+  const FRAME_LABELS = [
+    "Address",
+    "Early takeaway",
+    "Mid takeaway",
+    "Three quarter backswing",
+    "Top of backswing",
+    "Early downswing",
+    "Mid downswing",
+    "Impact",
+    "Early follow through",
+    "Mid follow through",
+    "Full finish",
+    "Face-on overview",
+  ];
 
-  const prompt = `You are a PGA-level golf coach analysing a real swing from 6 extracted video frames. Study each frame carefully.
-Frame 1 = Address/setup. Frame 2 = Early takeaway. Frame 3 = Mid backswing. Frame 4 = Top of backswing. Frame 5 = Impact zone. Frame 6 = Follow through.
+  const imageContent = frames.flatMap((b64: string, i: number) => [
+    { type: "text", text: `Frame ${i + 1}: ${FRAME_LABELS[i] ?? `Frame ${i + 1}`}` },
+    { type: "image", source: { type: "base64", media_type: "image/jpeg", data: b64 } },
+  ]);
+
+  const frameLabelsStr = FRAME_LABELS.slice(0, frames.length)
+    .map((label, i) => `Frame ${i + 1} = ${label}`)
+    .join(". ");
+
+  const prompt = `You are a PGA-level golf coach analysing a real swing from ${frames.length} extracted video frames. Study each frame carefully.
+${frameLabelsStr}.
 Look at the actual images and assess:
 
 Spine angle and posture at address

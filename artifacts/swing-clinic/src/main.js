@@ -140,7 +140,7 @@ async function animateSteps() {
   }
 }
 
-async function extractFrames(file, count = 6) {
+async function extractFrames(file, count = 12) {
   // ── Image file: read as a single frame directly ──
   if (file.type.startsWith('image/')) {
     console.log('[extractFrames] Image file detected — reading as single frame');
