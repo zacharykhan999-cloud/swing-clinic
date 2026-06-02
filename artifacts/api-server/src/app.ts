@@ -37,7 +37,13 @@ app.use(
 app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 
 app.use(cors());
-app.use(express.json({ limit: "20mb" }));
+// Store raw body buffer so the Whop webhook route can verify the HMAC signature
+app.use(express.json({
+  limit: "20mb",
+  verify: (req, _res, buf) => {
+    (req as unknown as Record<string, unknown>).rawBody = buf;
+  },
+}));
 app.use(express.urlencoded({ extended: true, limit: "20mb" }));
 
 app.use(
