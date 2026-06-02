@@ -9,6 +9,7 @@ const state = {
   file: null,
   results: null,
   analyses: [],   // runtime cache — loaded from server on login
+  profileLoaded: false,
   calibration: {
     sliceFrequency:    null,
     missDirection:     null,
@@ -42,7 +43,10 @@ function showScreen(id) {
 }
 
 // ── Splash ────────────────────────────────────────
-document.getElementById('splash-cta').addEventListener('click', () => showScreen('screen-goal'));
+document.getElementById('splash-cta').addEventListener('click', () => {
+  // Skip onboarding if profile already loaded from DB
+  showScreen(state.profileLoaded ? 'screen-upload' : 'screen-goal');
+});
 
 // ── Goal Selection ────────────────────────────────
 const goalGrid = document.getElementById('goal-grid');
@@ -81,7 +85,10 @@ coachGrid.querySelectorAll('.coach-card').forEach(btn => {
   });
 });
 
-profileNext.addEventListener('click', () => showScreen('screen-upload'));
+profileNext.addEventListener('click', () => {
+  saveProfileToServer();
+  showScreen('screen-upload');
+});
 
 // ── Video Upload ──────────────────────────────────
 const uploadZone    = document.getElementById('upload-zone');
@@ -661,23 +668,24 @@ function renderCoachingHistory() {
 
 // ── Restart ───────────────────────────────────────
 document.getElementById('results-restart').addEventListener('click', () => {
-  // Reset state
-  state.goal = null; state.handicap = null; state.years = null;
-  state.coach = null; state.file = null; state.results = null;
-
-  // Reset UI
-  document.querySelectorAll('.goal-card, .coach-card').forEach(c => c.classList.remove('selected'));
-  document.getElementById('goal-next').disabled = true;
-  document.getElementById('profile-next').disabled = true;
-  document.getElementById('handicap').selectedIndex = 0;
-  document.getElementById('years').selectedIndex = 0;
+  // Clear file + results; keep profile fields when already persisted
+  state.file = null; state.results = null;
+  if (!state.profileLoaded) {
+    state.goal = null; state.handicap = null; state.years = null; state.coach = null;
+    document.querySelectorAll('.goal-card, .coach-card').forEach(c => c.classList.remove('selected'));
+    document.getElementById('goal-next').disabled = true;
+    document.getElementById('profile-next').disabled = true;
+    document.getElementById('handicap').selectedIndex = 0;
+    document.getElementById('years').selectedIndex = 0;
+  }
   fileInfo.classList.add('hidden');
   uploadZone.style.display = '';
   uploadAnalyse.disabled = true;
   fileInput.value = '';
   document.querySelectorAll('.step-item').forEach(s => { s.classList.remove('active', 'done'); });
 
-  showScreen('screen-splash');
+  // Skip onboarding when profile is already saved
+  showScreen(state.profileLoaded ? 'screen-upload' : 'screen-splash');
 });
 
 // ── Utilities ─────────────────────────────────────
@@ -770,7 +778,7 @@ async function initClerk() {
       syncTierFromClerk(clerkInstance.user);
       state.userEmail = clerkInstance.user.primaryEmailAddress?.emailAddress;
       updateUserBadge();
-      await loadAnalysesFromServer();
+      await Promise.all([loadProfileFromServer(), loadAnalysesFromServer()]);
       showScreen('screen-splash');
     } else {
       showScreen('screen-auth');
@@ -782,7 +790,7 @@ async function initClerk() {
         if (document.getElementById('screen-auth')?.classList.contains('active')) {
           state.userEmail = user.primaryEmailAddress?.emailAddress;
           updateUserBadge();
-          await loadAnalysesFromServer();
+          await Promise.all([loadProfileFromServer(), loadAnalysesFromServer()]);
           showScreen('screen-splash');
         }
       }
@@ -799,6 +807,8 @@ document.getElementById('sign-out-btn')?.addEventListener('click', async () => {
   if (clerkInstance) {
     await clerkInstance.signOut();
     state.analyses = [];
+    state.profileLoaded = false;
+    state.goal = null; state.handicap = null; state.years = null; state.coach = null;
     window._swingClinicTier = null;
     resetAuthForm();
     showScreen('screen-auth');
@@ -898,7 +908,7 @@ document.getElementById('auth-code-btn')?.addEventListener('click', async () => 
     state.userEmail = user?.primaryEmailAddress?.emailAddress;
     updateUserBadge();
     resetAuthForm();
-    await loadAnalysesFromServer();
+    await Promise.all([loadProfileFromServer(), loadAnalysesFromServer()]);
     showScreen('screen-splash');
   } catch (err) {
     authError('auth-code-error', err?.errors?.[0]?.longMessage || err?.message || 'Invalid code. Try again.');
@@ -924,6 +934,63 @@ async function authFetch(url, options = {}) {
   const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
   if (token) headers['Authorization'] = `Bearer ${token}`;
   return fetch(url, { ...options, headers });
+}
+
+// ── Profile — backed by server DB ──────────────────
+// Loaded on login; saved when user confirms profile screen.
+
+async function loadProfileFromServer() {
+  try {
+    const res = await authFetch('/api/profile');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const { profile } = await res.json();
+    if (!profile) { state.profileLoaded = false; return; }
+    state.goal        = profile.goal        || null;
+    state.handicap    = profile.averageScore || null;
+    state.years       = profile.years        || null;
+    state.coach       = profile.coachStyle   || null;
+    state.profileLoaded = !!(state.goal && state.handicap && state.years && state.coach);
+    if (state.profileLoaded) applyProfileToUI();
+    console.log(`[profile] Loaded from server (complete=${state.profileLoaded}):`, profile);
+  } catch (err) {
+    console.error('[profile] Failed to load from server:', err);
+    state.profileLoaded = false;
+  }
+}
+
+function saveProfileToServer() {
+  authFetch('/api/profile', {
+    method: 'PUT',
+    body: JSON.stringify({
+      goal:         state.goal        || '',
+      averageScore: state.handicap    || '',
+      years:        state.years       || '',
+      coachStyle:   state.coach       || '',
+    }),
+  }).then(async r => {
+    if (!r.ok) console.error('[profile] Server rejected save:', await r.text().catch(() => 'unknown'));
+    else { state.profileLoaded = true; console.log('[profile] Saved to server'); }
+  }).catch(err => console.error('[profile] Save error:', err));
+}
+
+function applyProfileToUI() {
+  // Pre-select goal card
+  if (state.goal) {
+    goalGrid.querySelectorAll('.goal-card').forEach(b => {
+      b.classList.toggle('selected', b.dataset.goal === state.goal);
+    });
+    goalNext.disabled = false;
+  }
+  // Pre-set dropdown selects
+  if (state.handicap) handicapEl.value = state.handicap;
+  if (state.years)    yearsEl.value    = state.years;
+  // Pre-select coach card
+  if (state.coach) {
+    coachGrid.querySelectorAll('.coach-card').forEach(b => {
+      b.classList.toggle('selected', b.dataset.coach === state.coach);
+    });
+  }
+  checkProfileComplete();
 }
 
 // ── Analysis history — backed by server DB ─────────
