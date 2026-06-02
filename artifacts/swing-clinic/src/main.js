@@ -636,8 +636,8 @@ async function initClerk() {
   } catch (err) {
     const msg = err?.errors?.[0]?.message || err?.message || JSON.stringify(err) || String(err);
     console.error('Clerk init error:', msg, err);
-    // Fallback: show app without auth if Clerk fails to load
-    showScreen('screen-splash');
+    // Do NOT bypass auth on Clerk load failure — show auth screen so the user can retry
+    showScreen('screen-auth');
   }
 }
 
