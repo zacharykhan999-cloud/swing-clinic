@@ -735,8 +735,16 @@ document.getElementById('auth-code-btn')?.addEventListener('click', async () => 
     } else if (pendingSignIn) {
       result = await pendingSignIn.attemptFirstFactor({ strategy: 'email_code', code });
       await clerkInstance.setActive({ session: result.createdSessionId });
+    } else {
+      return;
     }
-    // clerkInstance.addListener will fire and navigate to splash
+    // setActive() is now resolved — navigate immediately rather than relying on the listener
+    const user = clerkInstance.user;
+    syncTierFromClerk(user);
+    state.userEmail = user?.primaryEmailAddress?.emailAddress;
+    updateUserBadge();
+    resetAuthForm();
+    showScreen('screen-splash');
   } catch (err) {
     authError('auth-code-error', err?.errors?.[0]?.longMessage || err?.message || 'Invalid code. Try again.');
   } finally {
