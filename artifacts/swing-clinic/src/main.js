@@ -9,6 +9,13 @@ const state = {
   file: null,
   results: null,
   analyses: [],   // runtime cache — loaded from server on login
+  calibration: {
+    sliceFrequency:    null,
+    missDirection:     null,
+    balanceLoss:       null,
+    fatShots:          null,
+    sevenIronDistance: null,
+  },
 };
 
 // ── Screen Router ─────────────────────────────────
@@ -123,6 +130,29 @@ uploadZone.addEventListener('drop', (e) => {
 });
 
 uploadAnalyse.addEventListener('click', () => {
+  showScreen('screen-questions');
+});
+
+// ── Quick Questions ────────────────────────────────
+const questionsNext = document.getElementById('questions-next');
+const Q_KEYS = ['sliceFrequency', 'missDirection', 'balanceLoss', 'fatShots', 'sevenIronDistance'];
+
+function checkQuestionsComplete() {
+  const answered = Q_KEYS.filter(k => state.calibration[k] !== null).length;
+  questionsNext.disabled = answered < Q_KEYS.length;
+}
+
+document.querySelectorAll('.q-option').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const q = btn.dataset.q;
+    document.querySelectorAll(`.q-option[data-q="${q}"]`).forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    state.calibration[Q_KEYS[parseInt(q) - 1]] = btn.dataset.val;
+    checkQuestionsComplete();
+  });
+});
+
+questionsNext.addEventListener('click', () => {
   showScreen('screen-analysing');
   runAnalysis();
 });
@@ -299,6 +329,7 @@ async function callVideoAPI(file) {
   formData.append('averageScore', state.handicap    || '');
   formData.append('years',        state.years       || '');
   formData.append('coach',        state.coach       || '');
+  formData.append('calibration',  JSON.stringify(state.calibration));
 
   // salt in URL ensures no HTTP/proxy cache hit; cache:'no-store' prevents browser cache
   const response = await fetch(`/api/analyse-video?_salt=${salt}`, {
@@ -334,6 +365,7 @@ async function callAPI(frames) {
       averageScore: state.handicap,
       years: state.years,
       coach: state.coach,
+      calibration: state.calibration,
     }),
   });
 

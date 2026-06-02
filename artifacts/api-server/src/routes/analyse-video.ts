@@ -83,16 +83,44 @@ async function uploadToGemini(buffer: Buffer, mimeType: string, apiKey: string):
   return file.uri;
 }
 
+type Calibration = {
+  sliceFrequency?: string;
+  missDirection?: string;
+  balanceLoss?: string;
+  fatShots?: string;
+  sevenIronDistance?: string;
+};
+
+function buildCalibrationBlock(cal: Calibration): string {
+  return `━━━ CALIBRATION DATA (50% of scoring weight) ━━━
+The golfer answered these self-assessment questions before submitting their video:
+
+Slice frequency: ${cal.sliceFrequency ?? "Not provided"}
+Miss direction: ${cal.missDirection ?? "Not provided"}
+Balance loss at finish: ${cal.balanceLoss ?? "Not provided"}
+Fat shots (hitting ground before ball): ${cal.fatShots ?? "Not provided"}
+7 iron distance: ${cal.sevenIronDistance ?? "Not provided"}
+
+These answers carry 50% of the scoring weight. The video provides the other 50%.
+HARD SCORE LIMITS — apply these strictly:
+- Always slices + loses balance + hits under 100 yards with 7 iron → overallScore CANNOT exceed 45
+- Rarely slices + no balance loss + hits 150+ yards with 7 iron → overallScore must be at least 70
+- Sometimes slices + sometimes loses balance + 100–130 yards → mid-handicap range (score 45–65)
+Cross-reference these limits with what you observe in the video before finalising any score.`;
+}
+
 // ── Gemini 2.5 Pro — video swing analysis ─────────────────────────────────────
 async function analyseWithGemini(
   fileUri: string,
   mimeType: string,
-  params: { goal: string; averageScore: string; years: string; coach: string },
+  params: { goal: string; averageScore: string; years: string; coach: string; calibration: Calibration },
   apiKey: string,
 ): Promise<string> {
   const sessionSeed = `${Date.now()}-${Math.floor(Math.random() * 99999)}`;
 
   const prompt = `Session: ${sessionSeed}
+
+${buildCalibrationBlock(params.calibration)}
 
 Watch the entire golf swing video carefully from start to finish — you have access to the full continuous motion, not just still frames.
 
@@ -127,7 +155,7 @@ CALIBRATION CHECKLIST (answer from your phase notes):
 5. Smooth, consistent tempo throughout? (+10)
 Yes to 4–5 → overallScore must exceed 80. Yes to all 5 on a clearly professional swing → 88–96.
 
-Stated average score: ${params.averageScore || "unknown"}. Weight this 40%, your visual evidence 60%.
+Stated average score: ${params.averageScore || "unknown"}. The calibration data above already accounts for 50% of scoring weight — the video provides the other 50%.
 
 UNIQUENESS RULE: Your 11 variable scores must precisely reflect this specific swing's strengths and weaknesses — no two swings ever share an identical variable profile.
 
@@ -205,21 +233,29 @@ Then output your scores wrapped exactly as shown — no JSON outside the tags:
 // ── Claude — drills + coach message ───────────────────────────────────────────
 async function getDrillsFromClaude(
   analysis: Record<string, unknown>,
-  params: { goal: string; years: string; coach: string },
+  params: { goal: string; years: string; coach: string; calibration: Calibration },
   apiKey: string,
 ): Promise<{ drills: unknown[]; coachMessage: string }> {
+  const cal = params.calibration;
   const prompt = `A video-based golf swing analysis produced these results:
 - Overall swing score: ${analysis.overallScore}/100
 - Biggest fault: ${analysis.biggestKiller} — ${analysis.biggestKillerDesc}
 - Potential improvement: ${analysis.potentialGain}
 - All variable scores: ${JSON.stringify(analysis.variables)}
 
+Golfer self-assessment:
+- Slice frequency: ${cal.sliceFrequency ?? "unknown"}
+- Miss direction: ${cal.missDirection ?? "unknown"}
+- Balance loss at finish: ${cal.balanceLoss ?? "unknown"}
+- Fat shots: ${cal.fatShots ?? "unknown"}
+- 7 iron distance: ${cal.sevenIronDistance ?? "unknown"}
+
 Golfer profile:
 - Years playing: ${params.years || "unknown"}
 - Goal: ${params.goal || "improve overall game"}
 - Preferred coaching style: ${params.coach || "balanced"}
 
-Generate two targeted drills that directly address the biggest fault and the two lowest variable scores. Then write a personalised coaching message.
+Generate two targeted drills that directly address the biggest fault and the two lowest variable scores. Take the self-assessment answers into account when writing the drills. Then write a personalised coaching message.
 
 Return only valid JSON with no markdown:
 {
@@ -278,25 +314,27 @@ router.post(
     if (!claudeKey)  { res.status(500).json({ error: "VITE_ANTHROPIC_API_KEY not configured" }); return; }
     if (!req.file)   { res.status(400).json({ error: "No video file provided" }); return; }
 
-    const { goal = "", averageScore = "", years = "", coach = "" } = req.body as Record<string, string>;
+    const { goal = "", averageScore = "", years = "", coach = "", calibration: calStr = "" } = req.body as Record<string, string>;
+    const calibration: Calibration = calStr ? JSON.parse(calStr) : {};
     const { buffer, mimetype } = req.file;
 
     try {
       // 1 — Upload video to Gemini Files API
       console.log(`[analyse-video] Uploading ${(buffer.length / 1024 / 1024).toFixed(1)} MB (${mimetype}) to Gemini`);
+      console.log(`[analyse-video] Calibration data: ${JSON.stringify(calibration)}`);
       const fileUri = await uploadToGemini(buffer, mimetype, geminiKey);
       console.log(`[analyse-video] File ACTIVE → ${fileUri}`);
 
       // 2 — Full swing analysis via Gemini 2.5 Pro (video-native)
       console.log("[analyse-video] Requesting Gemini 2.5 Pro analysis");
-      const geminiText = await analyseWithGemini(fileUri, mimetype, { goal, averageScore, years, coach }, geminiKey);
+      const geminiText = await analyseWithGemini(fileUri, mimetype, { goal, averageScore, years, coach, calibration }, geminiKey);
       console.log(`[analyse-video] FULL GEMINI RESPONSE:\n${geminiText}`);
       const analysis = extractResult(geminiText);
       console.log(`[analyse-video] PARSED GEMINI RESULT:\n${JSON.stringify(analysis, null, 2)}`);
 
       // 3 — Drills + personalised coaching message via Claude
       console.log("[analyse-video] Requesting Claude drills + coaching");
-      const extras = await getDrillsFromClaude(analysis, { goal, years, coach }, claudeKey);
+      const extras = await getDrillsFromClaude(analysis, { goal, years, coach, calibration }, claudeKey);
       console.log(`[analyse-video] CLAUDE DRILLS RESULT:\n${JSON.stringify(extras, null, 2)}`);
 
       // 4 — Merge and respond

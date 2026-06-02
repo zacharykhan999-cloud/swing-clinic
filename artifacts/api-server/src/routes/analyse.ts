@@ -9,13 +9,37 @@ router.post("/analyse", async (req, res) => {
     return;
   }
 
-  const { frames = [], goal, averageScore, years, coach } = req.body as {
+  const { frames = [], goal, averageScore, years, coach, calibration } = req.body as {
     frames: string[];
     goal: string;
     averageScore: string;
     years: string;
     coach: string;
+    calibration?: {
+      sliceFrequency?: string;
+      missDirection?: string;
+      balanceLoss?: string;
+      fatShots?: string;
+      sevenIronDistance?: string;
+    };
   };
+
+  const cal = calibration ?? {};
+  const calibrationBlock = `━━━ CALIBRATION DATA (50% of scoring weight) ━━━
+The golfer answered these self-assessment questions before submitting their video:
+
+Slice frequency: ${cal.sliceFrequency ?? 'Not provided'}
+Miss direction: ${cal.missDirection ?? 'Not provided'}
+Balance loss at finish: ${cal.balanceLoss ?? 'Not provided'}
+Fat shots (hitting ground before ball): ${cal.fatShots ?? 'Not provided'}
+7 iron distance: ${cal.sevenIronDistance ?? 'Not provided'}
+
+These answers carry 50% of the scoring weight. The video frames provide the other 50%.
+HARD SCORE LIMITS — apply these strictly, do not override:
+- Always slices + loses balance + hits under 100 yards with 7 iron → overallScore CANNOT exceed 45
+- Rarely slices + no balance loss + hits 150+ yards with 7 iron → overallScore must be at least 70
+- Sometimes slices + sometimes loses balance + 100–130 yards → mid-handicap range (score 45–65)
+Cross-reference these limits with what you see in the frames before finalising any score.`;
 
   const FRAME_LABELS = [
     "Address",
@@ -48,6 +72,8 @@ router.post("/analyse", async (req, res) => {
     .join(". ");
 
   const prompt = `Session: ${sessionSeed}
+
+${calibrationBlock}
 
 You are analysing ${frames.length} frames of a real golf swing. The frames are labelled:
 ${frameLabelsStr}.

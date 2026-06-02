@@ -1560,3 +1560,30 @@ body {
   flex-shrink: 0;
 }
 .auth-country-item.selected .auth-country-item-dial { color: #00C46A88; }
+
+/* ── QUICK QUESTIONS ─────────────────────────── */
+.question-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--border);
+}
+.question-block:last-of-type { border-bottom: none; }
+.question-label {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.4;
+}
+.question-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.question-options .goal-card {
+  flex: 1 1 auto;
+  padding: 13px 10px;
+  font-size: 0.85rem;
+  min-width: 72px;
+}
