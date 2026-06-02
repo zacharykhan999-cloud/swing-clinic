@@ -22,28 +22,31 @@ router.post("/analyse", async (req, res) => {
     source: { type: "base64", media_type: "image/jpeg", data: b64 },
   }));
 
-  const prompt = `You are an expert PGA-level golf coach analysing a real golf swing from video frames. You are looking at 6 frames extracted from the swing sequence.
+  const prompt = `You are a PGA-level golf coach analysing a real swing from 6 extracted video frames. Study each frame carefully.
+Frame 1 = Address/setup. Frame 2 = Early takeaway. Frame 3 = Mid backswing. Frame 4 = Top of backswing. Frame 5 = Impact zone. Frame 6 = Follow through.
+Look at the actual images and assess:
 
-Analyse what you can ACTUALLY SEE in the images:
+Spine angle and posture at address
+Club path direction in the takeaway
+Amount of shoulder and hip rotation
+Club position at the top
+Hip clearance and weight shift at impact
+Balance and extension in follow through
 
-Frame 1: Address position — check posture, spine angle, knee flex, ball position, grip
-Frame 2: Takeaway — check club path, wrist set, shoulder turn initiation
-Frame 3: Mid backswing — check rotation, plane, arm position
-Frame 4: Top of backswing — check shoulder turn, hip resistance, club position
-Frame 5: Impact — check weight transfer, hip clearance, head position, club face
-Frame 6: Follow through — check extension, balance, finish position
+SCORING RULES — you must follow these exactly:
 
-Be BRUTALLY honest. If the swing looks amateur, score it 30-50. If it looks professional, score it 85-95. Do not give every swing 67. Look at the actual images and judge what you see.
+If the swing looks professional (smooth, full rotation, on plane): score 85-95
+Single figure handicap swing: score 72-84
+Mid handicap swing: score 55-71
+High handicap swing: score 38-54
+Beginner swing (over the top, poor rotation, losing balance): score 25-37
 
-The golfer's stated average score is ${averageScore}. Use this to calibrate — someone who shoots 100+ should score 25-45, a scratch golfer 80-95.
+The golfer states their average score is ${averageScore}. Weight this heavily in your scoring. Do NOT give every swing 67. Vary the scores based on what you actually see.
 
-Golfer profile (use to personalise feedback only, not to inflate scores):
+Golfer profile (personalise feedback and tone only):
 - Years playing: ${years}
 - Goal: ${goal}
-- Coaching style preference: ${coach}
-
-Score these 11 variables based strictly on what you observe in the frames:
-Backswing Plane, Downswing Plane, Hip Rotation, Shoulder Turn, Weight Transfer, Club Face at Impact, Ball Position, Grip, Follow Through, Head Stability, Tempo & Rhythm.
+- Coaching style: ${coach}
 
 For handicapEstimate, derive from the swing quality you actually see:
 - Tour professional: "+4 to +6"
@@ -53,9 +56,7 @@ For handicapEstimate, derive from the swing quality you actually see:
 - High handicap (19-28): "19 to 28"
 - Beginner (28+): "28 to 36"
 
-Tailor the coachMessage tone to a ${coach} coaching style.
-
-Respond with ONLY valid JSON, no markdown, no explanation:
+Return only valid JSON with no markdown or explanation:
 {
   "overallScore": <number 0-100>,
   "variables": {
@@ -73,6 +74,7 @@ Respond with ONLY valid JSON, no markdown, no explanation:
   },
   "biggestKiller": "<variable name with lowest score>",
   "biggestKillerDesc": "<2-sentence explanation of this fault and its impact on ball flight>",
+  "potentialGain": "<e.g. '3-5 shots per round' — how many shots fixing this fault could save>",
   "drills": [
     { "name": "<drill name>", "desc": "<clear step-by-step instructions>", "reps": "<e.g. 20 reps · Daily>" },
     { "name": "<drill name>", "desc": "<clear step-by-step instructions>", "reps": "<e.g. 15 swings · 3×/week>" }

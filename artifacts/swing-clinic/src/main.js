@@ -308,6 +308,10 @@ function renderResults(data) {
   // Biggest Killer
   document.getElementById('killer-title').textContent = data.biggestKiller;
   document.getElementById('killer-desc').textContent  = data.biggestKillerDesc || '';
+  if (data.potentialGain) {
+    document.getElementById('killer-gain-value').textContent = data.potentialGain;
+    document.getElementById('killer-gain').classList.remove('hidden');
+  }
 
   // Variables
   const varList = document.getElementById('variables-list');
