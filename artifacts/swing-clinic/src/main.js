@@ -289,6 +289,30 @@ async function extractFrames(file, count = 12) {
   });
 }
 
+async function callVideoAPI(file) {
+  console.log(`[callVideoAPI] Sending video "${file.name}" (${(file.size / 1024 / 1024).toFixed(1)} MB) to /api/analyse-video`);
+  const formData = new FormData();
+  formData.append('video', file);
+  formData.append('goal',         state.goal        || '');
+  formData.append('averageScore', state.handicap    || '');
+  formData.append('years',        state.years       || '');
+  formData.append('coach',        state.coach       || '');
+
+  // Don't set Content-Type — browser sets it with the multipart boundary
+  const response = await fetch('/api/analyse-video', { method: 'POST', body: formData });
+
+  console.log(`[callVideoAPI] Response status: ${response.status}`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ error: response.statusText }));
+    console.error('[callVideoAPI] Error:', err);
+    throw new Error(err.error || `Server error ${response.status}`);
+  }
+
+  const data = await response.json();
+  console.log('[callVideoAPI] Result:', JSON.stringify({ overallScore: data.overallScore, biggestKiller: data.biggestKiller }));
+  return data;
+}
+
 async function callAPI(frames) {
   console.log(`[callAPI] Sending ${frames.length} frame(s) to /api/analyse`);
   const response = await fetch('/api/analyse', {
@@ -330,6 +354,25 @@ async function runAnalysis() {
   const stepsPromise = animateSteps();
 
   try {
+    const isVideo = state.file?.type?.startsWith('video/');
+
+    if (isVideo) {
+      // ── Primary path: Gemini 2.5 Pro native video analysis ──
+      console.log('[runAnalysis] Video detected — trying Gemini 2.5 Pro native analysis');
+      try {
+        state.results = await callVideoAPI(state.file);
+        await stepsPromise;
+        await wait(400);
+        showScreen('screen-results');
+        renderResults(state.results);
+        return;
+      } catch (geminiErr) {
+        console.warn('[runAnalysis] Gemini failed, falling back to Claude frame analysis:', geminiErr.message);
+        // Fall through to frame-based analysis below
+      }
+    }
+
+    // ── Fallback / image path: extract frames → Claude ──
     console.log('[runAnalysis] Extracting frames from file:', state.file?.name, state.file?.type);
     const frames = await extractFrames(state.file);
 
@@ -337,7 +380,7 @@ async function runAnalysis() {
       throw new Error('No frames could be extracted from the file. Make sure you upload a video (MP4/MOV) or image (JPG/PNG).');
     }
 
-    console.log(`[runAnalysis] Extracted ${frames.length} frame(s), calling API…`);
+    console.log(`[runAnalysis] Extracted ${frames.length} frame(s), calling Claude API…`);
     state.results = await callAPI(frames);
     await stepsPromise;
     await wait(400);
