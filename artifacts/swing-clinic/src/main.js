@@ -158,16 +158,29 @@ questionsNext.addEventListener('click', () => {
 });
 
 // ── Analysis ──────────────────────────────────────
-const STEP_DURATIONS = [800, 1200, 1500, 1200, 1000];
-
+// Steps 0-3 animate slowly; step 4 activates and stays spinning until completeLastStep() is called
 async function animateSteps() {
   const items = document.querySelectorAll('.step-item');
-  for (let i = 0; i < items.length; i++) {
+  const durations = [4200, 4800, 5000, 4400];
+  for (let i = 0; i < durations.length; i++) {
     items[i].classList.add('active');
-    await wait(STEP_DURATIONS[i]);
+    await wait(durations[i]);
     items[i].classList.remove('active');
     items[i].classList.add('done');
   }
+  // Activate last step — leave it spinning; caller must call completeLastStep()
+  items[4].classList.add('active');
+  const hint = document.getElementById('analysing-wait-hint');
+  if (hint) hint.classList.add('visible');
+}
+
+function completeLastStep() {
+  const items = document.querySelectorAll('.step-item');
+  const last = items[items.length - 1];
+  last.classList.remove('active');
+  last.classList.add('done');
+  const hint = document.getElementById('analysing-wait-hint');
+  if (hint) hint.classList.remove('visible');
 }
 
 async function extractFrames(file, count = 12) {
@@ -393,7 +406,8 @@ async function showError(message) {
 }
 
 async function runAnalysis() {
-  const stepsPromise = animateSteps();
+  // Steps 0-3 animate slowly; resolves once step 4 is active and spinning
+  const stepsReadyPromise = animateSteps();
 
   try {
     const isVideo = state.file?.type?.startsWith('video/');
@@ -402,15 +416,17 @@ async function runAnalysis() {
       // ── Primary path: Gemini 2.5 Pro native video analysis ──
       console.log('[runAnalysis] Video detected — trying Gemini 2.5 Pro native analysis');
       try {
-        state.results = await callVideoAPI(state.file);
-        await stepsPromise;
-        await wait(400);
+        // Run API and step animation concurrently; wait for both before proceeding
+        const [result] = await Promise.all([callVideoAPI(state.file), stepsReadyPromise]);
+        state.results = result;
+        completeLastStep();
+        await wait(1000);
         showScreen('screen-results');
         renderResults(state.results);
         return;
       } catch (geminiErr) {
         console.warn('[runAnalysis] Gemini failed, falling back to Claude frame analysis:', geminiErr.message);
-        // Fall through to frame-based analysis below
+        // Fall through — stepsReadyPromise may still be running; re-awaited below
       }
     }
 
@@ -423,14 +439,16 @@ async function runAnalysis() {
     }
 
     console.log(`[runAnalysis] Extracted ${frames.length} frame(s), calling Claude API…`);
-    state.results = await callAPI(frames);
-    await stepsPromise;
-    await wait(400);
+    const [result] = await Promise.all([callAPI(frames), stepsReadyPromise]);
+    state.results = result;
+    completeLastStep();
+    await wait(1000);
     showScreen('screen-results');
     renderResults(state.results);
   } catch (err) {
     console.error('[runAnalysis] Error:', err);
-    await stepsPromise;
+    await stepsReadyPromise; // ensure step 4 is active before showing error
+    completeLastStep();
     showError(err.message || 'Unknown error. Check the browser console for details.');
   }
 }
