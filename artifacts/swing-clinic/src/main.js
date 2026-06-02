@@ -652,122 +652,6 @@ document.getElementById('sign-out-btn')?.addEventListener('click', async () => {
 // ── Custom headless auth form ──────────────────────
 let pendingSignIn = null;
 let pendingSignUp = null;
-let pendingStrategy = 'email_code'; // 'email_code' | 'phone_code'
-
-// ── Country code picker state ──────────────────────
-const COUNTRIES = [
-  { flag: '🇬🇧', name: 'United Kingdom',  dial: '+44'  },
-  { flag: '🇺🇸', name: 'United States',   dial: '+1'   },
-  { flag: '🇨🇦', name: 'Canada',          dial: '+1'   },
-  { flag: '🇦🇺', name: 'Australia',       dial: '+61'  },
-  { flag: '🇮🇪', name: 'Ireland',         dial: '+353' },
-  { flag: '🇳🇿', name: 'New Zealand',     dial: '+64'  },
-  { flag: '🇿🇦', name: 'South Africa',    dial: '+27'  },
-  { flag: '🇦🇪', name: 'UAE',             dial: '+971' },
-  { flag: '🇮🇳', name: 'India',           dial: '+91'  },
-  { flag: '🇸🇬', name: 'Singapore',       dial: '+65'  },
-  { flag: '🇭🇰', name: 'Hong Kong',       dial: '+852' },
-  { flag: '🇩🇪', name: 'Germany',         dial: '+49'  },
-  { flag: '🇫🇷', name: 'France',          dial: '+33'  },
-  { flag: '🇪🇸', name: 'Spain',           dial: '+34'  },
-  { flag: '🇮🇹', name: 'Italy',           dial: '+39'  },
-  { flag: '🇳🇱', name: 'Netherlands',     dial: '+31'  },
-  { flag: '🇧🇪', name: 'Belgium',         dial: '+32'  },
-  { flag: '🇸🇪', name: 'Sweden',          dial: '+46'  },
-  { flag: '🇳🇴', name: 'Norway',          dial: '+47'  },
-  { flag: '🇩🇰', name: 'Denmark',         dial: '+45'  },
-  { flag: '🇵🇱', name: 'Poland',          dial: '+48'  },
-  { flag: '🇨🇭', name: 'Switzerland',     dial: '+41'  },
-  { flag: '🇵🇹', name: 'Portugal',        dial: '+351' },
-  { flag: '🇯🇵', name: 'Japan',           dial: '+81'  },
-  { flag: '🇧🇷', name: 'Brazil',          dial: '+55'  },
-  { flag: '🇲🇽', name: 'Mexico',          dial: '+52'  },
-];
-let selectedDial = '+44';
-let selectedFlag = '🇬🇧';
-
-function setCountry(flag, dial) {
-  selectedDial = dial;
-  selectedFlag = flag;
-  const flagEl = document.getElementById('auth-country-flag');
-  const codeEl = document.getElementById('auth-country-code');
-  if (flagEl) flagEl.textContent = flag;
-  if (codeEl) codeEl.textContent = dial;
-  // Refresh selected state in dropdown
-  document.querySelectorAll('.auth-country-item').forEach(el => {
-    el.classList.toggle('selected', el.dataset.dial === dial && el.dataset.flag === flag);
-  });
-}
-
-function buildCountryDropdown() {
-  const dropdown = document.getElementById('auth-country-dropdown');
-  if (!dropdown || dropdown.children.length) return;
-  COUNTRIES.forEach(c => {
-    const item = document.createElement('button');
-    item.type = 'button';
-    item.className = 'auth-country-item' + (c.dial === selectedDial && c.flag === selectedFlag ? ' selected' : '');
-    item.dataset.dial = c.dial;
-    item.dataset.flag = c.flag;
-    item.setAttribute('role', 'option');
-    item.innerHTML = `<span class="auth-country-item-flag">${c.flag}</span><span class="auth-country-item-name">${c.name}</span><span class="auth-country-item-dial">${c.dial}</span>`;
-    item.addEventListener('click', () => {
-      setCountry(c.flag, c.dial);
-      closeCountryDropdown();
-      document.getElementById('auth-email')?.focus();
-    });
-    dropdown.appendChild(item);
-  });
-}
-
-function openCountryDropdown() {
-  buildCountryDropdown();
-  const dropdown = document.getElementById('auth-country-dropdown');
-  const btn = document.getElementById('auth-country-btn');
-  dropdown?.classList.remove('hidden');
-  btn?.setAttribute('aria-expanded', 'true');
-  // Scroll selected item into view
-  const selected = dropdown?.querySelector('.selected');
-  selected?.scrollIntoView({ block: 'nearest' });
-}
-
-function closeCountryDropdown() {
-  const dropdown = document.getElementById('auth-country-dropdown');
-  const btn = document.getElementById('auth-country-btn');
-  dropdown?.classList.add('hidden');
-  btn?.setAttribute('aria-expanded', 'false');
-}
-
-document.getElementById('auth-country-btn')?.addEventListener('click', (e) => {
-  e.stopPropagation();
-  const dropdown = document.getElementById('auth-country-dropdown');
-  if (dropdown?.classList.contains('hidden')) {
-    openCountryDropdown();
-  } else {
-    closeCountryDropdown();
-  }
-});
-
-// Close dropdown when clicking outside
-document.addEventListener('click', (e) => {
-  if (!e.target.closest('#auth-input-row') && !e.target.closest('#auth-country-dropdown')) {
-    closeCountryDropdown();
-  }
-});
-
-// ── Phone/Email detection & normalisation ──────────
-function detectInputType(val) {
-  if (val.includes('@')) return 'email';
-  // Digits with optional spacing/punctuation → phone
-  const digits = val.replace(/[\s\-\(\)\+\.]/g, '');
-  return /^\d{5,}$/.test(digits) ? 'phone' : 'email';
-}
-
-function normalizePhone(val) {
-  const digits = val.replace(/\D/g, '');
-  // Strip leading 0 (domestic format, e.g. UK 07911…)
-  const local = digits.startsWith('0') ? digits.slice(1) : digits;
-  return selectedDial + local;
-}
 
 function authError(elId, msg) {
   const el = document.getElementById(elId);
@@ -792,7 +676,6 @@ function showAuthStep(step) {
 function resetAuthForm() {
   pendingSignIn = null;
   pendingSignUp = null;
-  pendingStrategy = 'email_code';
   if (document.getElementById('auth-email')) document.getElementById('auth-email').value = '';
   if (document.getElementById('auth-code')) document.getElementById('auth-code').value = '';
   authErrorClear('auth-email-error');
@@ -802,46 +685,28 @@ function resetAuthForm() {
 
 document.getElementById('auth-email-btn')?.addEventListener('click', async () => {
   if (!clerkInstance) return;
-  const raw = document.getElementById('auth-email')?.value?.trim();
-  if (!raw) return authError('auth-email-error', 'Please enter your email or phone number.');
+  const email = document.getElementById('auth-email')?.value?.trim();
+  if (!email) return authError('auth-email-error', 'Please enter your email address.');
   authErrorClear('auth-email-error');
   setAuthLoading('auth-email-btn', true);
 
-  const inputType = detectInputType(raw);
-  const identifier = inputType === 'phone' ? normalizePhone(raw) : raw;
-
   try {
-    // Try sign-in first (works for both email and phone)
-    const si = await clerkInstance.client.signIn.create({ identifier });
+    // Try sign-in first (existing user)
+    const si = await clerkInstance.client.signIn.create({ identifier: email });
     pendingSignIn = si;
-    if (inputType === 'phone') {
-      const factor = si.supportedFirstFactors?.find(f => f.strategy === 'phone_code');
-      if (factor) await si.prepareFirstFactor({ strategy: 'phone_code', phoneNumberId: factor.phoneNumberId });
-      pendingStrategy = 'phone_code';
-    } else {
-      const factor = si.supportedFirstFactors?.find(f => f.strategy === 'email_code');
-      if (factor) await si.prepareFirstFactor({ strategy: 'email_code', emailAddressId: factor.emailAddressId });
-      pendingStrategy = 'email_code';
-    }
-    document.getElementById('auth-step-email-preview').textContent = identifier;
+    const factor = si.supportedFirstFactors?.find(f => f.strategy === 'email_code');
+    if (factor) await si.prepareFirstFactor({ strategy: 'email_code', emailAddressId: factor.emailAddressId });
+    document.getElementById('auth-step-email-preview').textContent = email;
     showAuthStep('code');
   } catch (err) {
     const errCode = err?.errors?.[0]?.code;
     if (errCode === 'form_identifier_not_found' || errCode === 'form_param_format_invalid') {
       // New user → sign up
       try {
-        let su;
-        if (inputType === 'phone') {
-          su = await clerkInstance.client.signUp.create({ phoneNumber: identifier });
-          await su.preparePhoneNumberVerification({ strategy: 'phone_code' });
-          pendingStrategy = 'phone_code';
-        } else {
-          su = await clerkInstance.client.signUp.create({ emailAddress: identifier });
-          await su.prepareEmailAddressVerification({ strategy: 'email_code' });
-          pendingStrategy = 'email_code';
-        }
+        const su = await clerkInstance.client.signUp.create({ emailAddress: email });
+        await su.prepareEmailAddressVerification({ strategy: 'email_code' });
         pendingSignUp = su;
-        document.getElementById('auth-step-email-preview').textContent = identifier;
+        document.getElementById('auth-step-email-preview').textContent = email;
         showAuthStep('code');
       } catch (suErr) {
         authError('auth-email-error', suErr?.errors?.[0]?.longMessage || suErr?.message || 'Could not create account.');
@@ -863,12 +728,10 @@ document.getElementById('auth-code-btn')?.addEventListener('click', async () => 
   try {
     let result;
     if (pendingSignUp) {
-      result = pendingStrategy === 'phone_code'
-        ? await pendingSignUp.attemptPhoneNumberVerification({ code })
-        : await pendingSignUp.attemptEmailAddressVerification({ code });
+      result = await pendingSignUp.attemptEmailAddressVerification({ code });
       await clerkInstance.setActive({ session: result.createdSessionId });
     } else if (pendingSignIn) {
-      result = await pendingSignIn.attemptFirstFactor({ strategy: pendingStrategy, code });
+      result = await pendingSignIn.attemptFirstFactor({ strategy: 'email_code', code });
       await clerkInstance.setActive({ session: result.createdSessionId });
     } else {
       return;
@@ -876,8 +739,7 @@ document.getElementById('auth-code-btn')?.addEventListener('click', async () => 
     // setActive() resolved — navigate directly, don't rely on listener timing
     const user = clerkInstance.user;
     syncTierFromClerk(user);
-    state.userEmail = user?.primaryEmailAddress?.emailAddress
-                   ?? user?.primaryPhoneNumber?.phoneNumber;
+    state.userEmail = user?.primaryEmailAddress?.emailAddress;
     updateUserBadge();
     resetAuthForm();
     showScreen('screen-splash');
@@ -891,7 +753,6 @@ document.getElementById('auth-code-btn')?.addEventListener('click', async () => 
 document.getElementById('auth-back-btn')?.addEventListener('click', () => {
   pendingSignIn = null;
   pendingSignUp = null;
-  pendingStrategy = 'email_code';
   authErrorClear('auth-code-error');
   showAuthStep('email');
 });
