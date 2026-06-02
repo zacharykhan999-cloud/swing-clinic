@@ -140,7 +140,33 @@ async function animateSteps() {
 }
 
 async function extractFrames(file, count = 6) {
-  return new Promise((resolve) => {
+  // ── Image file: read as a single frame directly ──
+  if (file.type.startsWith('image/')) {
+    console.log('[extractFrames] Image file detected — reading as single frame');
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width  = 640;
+          canvas.height = Math.round(640 * (img.height / img.width));
+          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+          const b64 = canvas.toDataURL('image/jpeg', 0.85).split(',')[1];
+          console.log(`[extractFrames] Image frame extracted (${canvas.width}×${canvas.height})`);
+          resolve([b64]);
+        };
+        img.onerror = () => reject(new Error('Could not load the image file.'));
+        img.src = e.target.result;
+      };
+      reader.onerror = () => reject(new Error('Could not read the file.'));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // ── Video file: extract 6 evenly-spaced frames ──
+  console.log('[extractFrames] Video file detected — extracting frames');
+  return new Promise((resolve, reject) => {
     const video  = document.createElement('video');
     const canvas = document.createElement('canvas');
     const ctx    = canvas.getContext('2d');
@@ -153,6 +179,7 @@ async function extractFrames(file, count = 6) {
       canvas.width  = 320;
       canvas.height = 180;
       const step = video.duration / (count + 1);
+      console.log(`[extractFrames] Video duration: ${video.duration.toFixed(2)}s, extracting ${count} frames`);
 
       for (let i = 1; i <= count; i++) {
         video.currentTime = step * i;
@@ -161,15 +188,20 @@ async function extractFrames(file, count = 6) {
         frames.push(canvas.toDataURL('image/jpeg', 0.6).split(',')[1]);
       }
       URL.revokeObjectURL(video.src);
+      console.log(`[extractFrames] Extracted ${frames.length} frames`);
       resolve(frames);
     });
 
-    video.addEventListener('error', () => resolve([]));
+    video.addEventListener('error', (e) => {
+      console.error('[extractFrames] Video load error:', e);
+      reject(new Error('Could not read the video file. Try uploading a different format (MP4 works best).'));
+    });
     video.load();
   });
 }
 
 async function callAPI(frames) {
+  console.log(`[callAPI] Sending ${frames.length} frame(s) to /api/analyse`);
   const response = await fetch('/api/analyse', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -182,83 +214,16 @@ async function callAPI(frames) {
     }),
   });
 
+  console.log(`[callAPI] Response status: ${response.status}`);
   if (!response.ok) {
     const err = await response.json().catch(() => ({ error: response.statusText }));
+    console.error('[callAPI] API error:', err);
     throw new Error(err.error || `Server error ${response.status}`);
   }
 
-  return response.json();
-}
-
-function getMockResults() {
-  const scores = {
-    'Backswing Plane':       62,
-    'Downswing Plane':       58,
-    'Hip Rotation':          71,
-    'Shoulder Turn':         75,
-    'Weight Transfer':       54,
-    'Club Face at Impact':   49,
-    'Ball Position':         80,
-    'Grip':                  85,
-    'Follow Through':        66,
-    'Head Stability':        60,
-    'Tempo & Rhythm':        73,
-  };
-
-  const avg = Math.round(Object.values(scores).reduce((a, b) => a + b, 0) / 11);
-
-  const biggestKillerKey = Object.entries(scores).sort((a, b) => a[1] - b[1])[0][0];
-
-  const killerDescriptions = {
-    'Club Face at Impact': 'Your club face is arriving open at impact, causing a consistent left-to-right ball flight. This single fault is costing you distance and accuracy on almost every shot.',
-    'Weight Transfer': 'You\'re hanging back on your rear foot through impact, robbing you of power and causing thin or fat contact.',
-    'Downswing Plane': 'Your downswing is too steep, causing an over-the-top move that produces slices and pull-hooks.',
-  };
-
-  const drillsByGoal = {
-    'Fix my slice': [
-      { name: 'Gate Drill', desc: 'Place two tees just outside the ball on both sides and practice swinging through without hitting them. Encourages an inside-out path.', reps: '20 reps · Daily' },
-      { name: 'Towel Under Arm', desc: 'Place a towel under your trail arm and keep it connected through impact. Eliminates the chicken-wing that opens the face.', reps: '15 swings · 3×/week' },
-    ],
-    'Hit longer drives': [
-      { name: 'Step-Through Drill', desc: 'Start with feet together, step forward with your lead foot as you swing. Forces weight shift and hip drive through impact.', reps: '15 reps · Daily' },
-      { name: 'Pause at Top', desc: 'Take the club to the top and pause for 2 seconds before swinging. Builds sequence awareness and lag retention.', reps: '10 reps · Daily' },
-    ],
-    default: [
-      { name: 'Impact Bag Work', desc: 'Strike an impact bag or folded towel 20 times focusing on leading with the hands and a flat lead wrist at impact.', reps: '20 reps · 3×/week' },
-      { name: 'Split-Grip Drill', desc: 'Choke down so your hands are 6 inches apart. Make slow swings — this instantly reveals swing path faults and builds awareness.', reps: '10 swings · Daily' },
-    ],
-  };
-
-  const coachMessages = {
-    Technician: `Your data shows a ${avg}/100 swing score with your primary fault being ${biggestKillerKey}. Mechanically, your grip and ball position are solid foundations — the issue is sequencing. Focus on the two drills and you should see measurable improvement within 3–4 weeks.`,
-    Competitor: `${avg} out of 100. That's where you are right now — and it's not where you're going. Your ${biggestKillerKey} is costing you shots every single round. Fix that one thing and you'll be competing at a completely different level within a month. Get after it.`,
-    Motivator: `Great job getting your swing on camera — that's already more than most golfers do! Your score of ${avg}/100 shows real potential. Your grip and ball position are genuinely strong. Work on the two drills below and you'll be amazed how quickly your ball-striking improves. You've got this!`,
-  };
-
-  const drills = drillsByGoal[state.goal] || drillsByGoal.default;
-  const coachMsg = coachMessages[state.coach] || coachMessages.Technician;
-  const killerDesc = killerDescriptions[biggestKillerKey] || `Your ${biggestKillerKey} is the area with the most room for improvement. Addressing this will have the biggest impact on your overall game.`;
-
-  function handicapFromScore(score) {
-    if (score >= 85) return { range: '+4 to +6',  reason: 'Your tempo, rotation, and impact position are consistent with a tour-level player.' };
-    if (score >= 72) return { range: '0 to 9',    reason: 'Your swing mechanics and sequencing indicate a single-figure handicap golfer.' };
-    if (score >= 55) return { range: '10 to 18',  reason: 'Your rotation and weight transfer scores suggest a mid-handicap player with a solid base to build on.' };
-    if (score >= 38) return { range: '19 to 28',  reason: 'Key sequencing and impact issues are typical of a high-handicap player still developing consistency.' };
-    return              { range: '28 to 36',  reason: 'Fundamental movement patterns suggest a beginner still building core swing mechanics.' };
-  }
-
-  const handicapEstimate = handicapFromScore(avg);
-
-  return {
-    overallScore: avg,
-    variables: scores,
-    biggestKiller: biggestKillerKey,
-    biggestKillerDesc: killerDesc,
-    drills,
-    coachMessage: coachMsg,
-    handicapEstimate,
-  };
+  const data = await response.json();
+  console.log('[callAPI] Result:', JSON.stringify({ overallScore: data.overallScore, biggestKiller: data.biggestKiller }));
+  return data;
 }
 
 async function showError(message) {
@@ -274,19 +239,25 @@ async function showError(message) {
 
 async function runAnalysis() {
   const stepsPromise = animateSteps();
-  let frames = [];
 
   try {
-    frames = await extractFrames(state.file);
+    console.log('[runAnalysis] Extracting frames from file:', state.file?.name, state.file?.type);
+    const frames = await extractFrames(state.file);
+
+    if (frames.length === 0) {
+      throw new Error('No frames could be extracted from the file. Make sure you upload a video (MP4/MOV) or image (JPG/PNG).');
+    }
+
+    console.log(`[runAnalysis] Extracted ${frames.length} frame(s), calling API…`);
     state.results = await callAPI(frames);
     await stepsPromise;
     await wait(400);
     showScreen('screen-results');
     renderResults(state.results);
   } catch (err) {
+    console.error('[runAnalysis] Error:', err);
     await stepsPromise;
-    showError(err.message || 'Unknown error. Check the console for details.');
-    console.error('Analysis error:', err);
+    showError(err.message || 'Unknown error. Check the browser console for details.');
   }
 }
 

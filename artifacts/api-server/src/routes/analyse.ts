@@ -96,6 +96,8 @@ Return only valid JSON with no markdown or explanation:
   }
 }`;
 
+  console.log(`[analyse] Sending ${imageContent.length} image(s) to Anthropic (model: claude-sonnet-4-5)`);
+
   const anthropicRes = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -116,23 +118,31 @@ Return only valid JSON with no markdown or explanation:
     }),
   });
 
+  console.log(`[analyse] Anthropic response status: ${anthropicRes.status}`);
+
   if (!anthropicRes.ok) {
     const errText = await anthropicRes.text();
     req.log.error({ status: anthropicRes.status, body: errText }, "Anthropic API error");
+    console.error(`[analyse] Anthropic error body: ${errText}`);
     res.status(502).json({ error: `Anthropic API error ${anthropicRes.status}: ${errText}` });
     return;
   }
 
-  const anthropicData = await anthropicRes.json() as { content: { text: string }[] };
+  const anthropicData = await anthropicRes.json() as { content: { text: string }[], usage?: Record<string, number> };
   const text = anthropicData.content?.[0]?.text ?? "";
+  console.log(`[analyse] Anthropic raw response (first 300 chars): ${text.slice(0, 300)}`);
+
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
     req.log.error({ text }, "No JSON found in Anthropic response");
+    console.error(`[analyse] No JSON found in response. Full text: ${text}`);
     res.status(502).json({ error: "No JSON in Anthropic response", raw: text.slice(0, 500) });
     return;
   }
 
-  res.json(JSON.parse(jsonMatch[0]));
+  const result = JSON.parse(jsonMatch[0]);
+  console.log(`[analyse] Parsed result — overallScore: ${result.overallScore}, biggestKiller: ${result.biggestKiller}`);
+  res.json(result);
 });
 
 export default router;
