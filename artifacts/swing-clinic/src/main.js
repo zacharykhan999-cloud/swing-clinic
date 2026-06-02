@@ -896,23 +896,6 @@ document.getElementById('auth-back-btn')?.addEventListener('click', () => {
   showAuthStep('email');
 });
 
-// ── OAuth (Google / Apple) ─────────────────────────
-async function startOAuth(strategy) {
-  if (!clerkInstance) return;
-  authErrorClear('auth-email-error');
-  try {
-    // authenticateWithRedirect lives on the SignIn resource, not on clerkInstance directly
-    await clerkInstance.client.signIn.authenticateWithRedirect({
-      strategy,
-      redirectUrl: window.location.origin,
-      redirectUrlComplete: window.location.origin,
-    });
-  } catch (err) {
-    authError('auth-email-error', err?.errors?.[0]?.longMessage || err?.message || 'Sign-in failed. Try again.');
-  }
-}
-document.getElementById('auth-google-btn')?.addEventListener('click', () => startOAuth('oauth_google'));
-document.getElementById('auth-apple-btn')?.addEventListener('click',  () => startOAuth('oauth_apple'));
 
 initClerk();
 
