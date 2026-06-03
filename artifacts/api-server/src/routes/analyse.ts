@@ -5,11 +5,22 @@ const router: IRouter = Router();
 router.post("/analyse", async (req, res) => {
   const apiKey = process.env["VITE_ANTHROPIC_API_KEY"];
   if (!apiKey) {
-    res.status(500).json({ error: "VITE_ANTHROPIC_API_KEY is not configured on the server." });
+    res
+      .status(500)
+      .json({
+        error: "VITE_ANTHROPIC_API_KEY is not configured on the server.",
+      });
     return;
   }
 
-  const { frames = [], goal, averageScore, years, coach, calibration } = req.body as {
+  const {
+    frames = [],
+    goal,
+    averageScore,
+    years,
+    coach,
+    calibration,
+  } = req.body as {
     frames: string[];
     goal: string;
     averageScore: string;
@@ -25,20 +36,38 @@ router.post("/analyse", async (req, res) => {
   };
 
   const cal = calibration ?? {};
-  const calibrationBlock = `━━━ CALIBRATION DATA (50% of scoring weight) ━━━
+  const sliceRarely =
+    cal.sliceFrequency === "rarely" || cal.sliceFrequency === "never";
+  const noBalance = cal.balanceLoss === "rarely" || cal.balanceLoss === "never";
+  const longIron =
+    cal.sevenIronDistance === "150+" || cal.sevenIronDistance === "170+";
+  const alwaysSlice =
+    cal.sliceFrequency === "always" || cal.sliceFrequency === "often";
+  const loseBalance =
+    cal.balanceLoss === "always" || cal.balanceLoss === "often";
+  const shortIron =
+    cal.sevenIronDistance === "under 100" ||
+    cal.sevenIronDistance === "100-130";
+  const isProProfile = sliceRarely && noBalance && longIron;
+  const isBeginProfile = alwaysSlice && loseBalance && shortIron;
+
+  const calibrationBlock = `━━━ CALIBRATION DATA ━━━
 The golfer answered these self-assessment questions before submitting their video:
 
-Slice frequency: ${cal.sliceFrequency ?? 'Not provided'}
-Miss direction: ${cal.missDirection ?? 'Not provided'}
-Balance loss at finish: ${cal.balanceLoss ?? 'Not provided'}
-Fat shots (hitting ground before ball): ${cal.fatShots ?? 'Not provided'}
-7 iron distance: ${cal.sevenIronDistance ?? 'Not provided'}
+Slice frequency: ${cal.sliceFrequency ?? "Not provided"}
+Miss direction: ${cal.missDirection ?? "Not provided"}
+Balance loss at finish: ${cal.balanceLoss ?? "Not provided"}
+Fat shots (hitting ground before ball): ${cal.fatShots ?? "Not provided"}
+7 iron distance: ${cal.sevenIronDistance ?? "Not provided"}
 
-These answers carry 50% of the scoring weight. The video frames provide the other 50%.
-HARD SCORE LIMITS — apply these strictly, do not override:
-- Always slices + loses balance + hits under 100 yards with 7 iron → overallScore CANNOT exceed 45
-- Rarely slices + no balance loss + hits 150+ yards with 7 iron → overallScore must be at least 70
-- Sometimes slices + sometimes loses balance + 100–130 yards → mid-handicap range (score 45–65)
+HARD SCORE FLOOR/CEILING — enforce these before finalising any score:
+- Beginner profile (always/often slices + loses balance + under 130 yards): overallScore CANNOT exceed 45
+- Mid-handicap profile (sometimes slices + sometimes loses balance + 100–150 yards): overallScore 45–74
+- Low/scratch profile (rarely slices + rarely loses balance + 150+ yards): overallScore at minimum 75
+- Tour/professional profile (never/rarely slices + never/rarely loses balance + 170+ yards): overallScore at minimum 88
+${isProProfile ? "\n⚠️  ACTIVE LIMIT: This golfer's answers match a TOUR/PRO profile. overallScore MUST be 88 or higher if the frames confirm professional mechanics. Do NOT score below 88 unless you observe a clear, disqualifying fault in the frames." : ""}
+${isBeginProfile ? "\n⚠️  ACTIVE LIMIT: This golfer's answers match a BEGINNER profile. overallScore CANNOT exceed 45." : ""}
+
 Cross-reference these limits with what you see in the frames before finalising any score.`;
 
   const FRAME_LABELS = [
@@ -58,8 +87,14 @@ Cross-reference these limits with what you see in the frames before finalising a
 
   // Interleave label text + image so Claude sees the label immediately before each frame
   const imageContent = frames.flatMap((b64: string, i: number) => [
-    { type: "text", text: `Frame ${i + 1}: ${FRAME_LABELS[i] ?? `Frame ${i + 1}`}` },
-    { type: "image", source: { type: "base64", media_type: "image/jpeg", data: b64 } },
+    {
+      type: "text",
+      text: `Frame ${i + 1}: ${FRAME_LABELS[i] ?? `Frame ${i + 1}`}`,
+    },
+    {
+      type: "image",
+      source: { type: "base64", media_type: "image/jpeg", data: b64 },
+    },
   ]);
 
   // Unique session seed so Claude cannot repeat a score from a prior request
@@ -96,15 +131,24 @@ BAND REFERENCE (use your per-frame notes to place the swing):
 - High handicap (19–28): 38–54
 - Beginner: 20–37
 
-CALIBRATION — answer from your frame notes before scoring:
-1. Full shoulder rotation visible? (+10)
-2. Club on plane at three-quarter backswing and top? (+10)
-3. Clear weight transfer to lead side at impact? (+10)
-4. Balanced, complete finish? (+10)
-5. Smooth, consistent tempo throughout all frames? (+10)
-Yes to 4–5 → overallScore must exceed 80. Yes to all 5 on a clearly professional swing → 88–96.
+VISUAL CHECKLIST — answer YES or NO from your frame observations, then apply the mandatory score floor:
+1. Full shoulder rotation (≥80°) visible at top of backswing?
+2. Club on plane at three-quarter back AND at top?
+3. Clear weight transfer to lead side visible at impact?
+4. Balanced, complete finish with weight fully on lead foot?
+5. Smooth, consistent tempo with no lurching or rushing?
 
-The golfer's stated average score is ${averageScore}. Weight this 40%, visual evidence 60%.
+Score floors from checklist:
+- 5/5 YES → overallScore MUST be 88–96 (professional band)
+- 4/5 YES → overallScore MUST exceed 80
+- 3/5 YES → overallScore 65–80
+- 2/5 YES → overallScore 45–65
+- 0–1/5 YES → overallScore below 45
+
+These floors are MANDATORY. You may not score below the floor the checklist dictates.
+The calibration hard limits above also apply — use whichever floor is higher.
+
+For reference, the golfer stated their average score is: ${averageScore} (treat as supplementary context only, not a scoring input).
 
 UNIQUENESS RULE: Every swing is physically different. Your 11 variable scores must reflect the specific strengths and faults you observed in this swing's frames. No two swings should share an identical variable profile.
 
@@ -157,8 +201,12 @@ Then output your result wrapped exactly like this — no other braces outside th
 }
 </result>`;
 
-  const totalPayloadKb = Math.round(frames.reduce((sum: number, f: string) => sum + f.length, 0) / 1024);
-  console.log(`[analyse] FRAMES BEING SENT: ${frames.length} frame(s), total base64 payload ~${totalPayloadKb} KB, session seed: ${sessionSeed}`);
+  const totalPayloadKb = Math.round(
+    frames.reduce((sum: number, f: string) => sum + f.length, 0) / 1024,
+  );
+  console.log(
+    `[analyse] FRAMES BEING SENT: ${frames.length} frame(s), total base64 payload ~${totalPayloadKb} KB, session seed: ${sessionSeed}`,
+  );
 
   const anthropicRes = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -171,13 +219,12 @@ Then output your result wrapped exactly like this — no other braces outside th
       model: "claude-sonnet-4-5",
       max_tokens: 4096,
       system: systemPrompt,
-      messages: [{
-        role: "user",
-        content: [
-          ...imageContent,
-          { type: "text", text: prompt },
-        ],
-      }],
+      messages: [
+        {
+          role: "user",
+          content: [...imageContent, { type: "text", text: prompt }],
+        },
+      ],
     }),
   });
 
@@ -185,13 +232,20 @@ Then output your result wrapped exactly like this — no other braces outside th
 
   if (!anthropicRes.ok) {
     const errText = await anthropicRes.text();
-    req.log.error({ status: anthropicRes.status, body: errText }, "Anthropic API error");
+    req.log.error(
+      { status: anthropicRes.status, body: errText },
+      "Anthropic API error",
+    );
     console.error(`[analyse] Anthropic error body: ${errText}`);
-    res.status(502).json({ error: `Anthropic API error ${anthropicRes.status}: ${errText}` });
+    res
+      .status(502)
+      .json({
+        error: `Anthropic API error ${anthropicRes.status}: ${errText}`,
+      });
     return;
   }
 
-  const anthropicData = await anthropicRes.json() as {
+  const anthropicData = (await anthropicRes.json()) as {
     content: { text: string }[];
     usage?: Record<string, number>;
   };
@@ -215,7 +269,12 @@ Then output your result wrapped exactly like this — no other braces outside th
   if (!jsonStr) {
     req.log.error({ text }, "No JSON found in Anthropic response");
     console.error(`[analyse] No JSON found. Full text: ${text}`);
-    res.status(502).json({ error: "No JSON in Anthropic response", raw: text.slice(0, 500) });
+    res
+      .status(502)
+      .json({
+        error: "No JSON in Anthropic response",
+        raw: text.slice(0, 500),
+      });
     return;
   }
 

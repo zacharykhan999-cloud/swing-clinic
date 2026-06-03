@@ -1,65 +1,87 @@
 // Clerk is loaded via <script> tag in index.html → window.Clerk
 
 // ── Admin ─────────────────────────────────────────
-const ADMIN_EMAIL = 'zacharykhan894@gmail.com';
-const IS_ADMIN_ROUTE = window.location.pathname === '/admin' || window.location.pathname === '/admin/';
+const ADMIN_EMAIL = "zacharykhan999@gmail.com";
+const IS_ADMIN_ROUTE =
+  window.location.pathname === "/admin" ||
+  window.location.pathname === "/admin/";
 
 function admRelTime(iso) {
   const d = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
   if (d < 60) return `${d}s ago`;
   if (d < 3600) return `${Math.floor(d / 60)}m ago`;
   if (d < 86400) return `${Math.floor(d / 3600)}h ago`;
-  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  return new Date(iso).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+  });
 }
 
 function admRenderStats(data) {
-  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
-  set('adm-users',    data.users.total.toLocaleString());
-  set('adm-analyses', data.analyses.allTime.toLocaleString());
-  set('adm-paid',     data.users.paidTotal.toLocaleString());
-  set('adm-paid-sub', `${data.users.report} report · ${data.users.pro} pro`);
-  set('adm-avg',      data.avgScore ?? '—');
-  set('adm-today',    data.analyses.today.toLocaleString());
-  set('adm-conv',     data.users.conversionRate + '%');
-  set('admin-last-updated', 'Updated ' + new Date().toLocaleTimeString());
+  const set = (id, v) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = v;
+  };
+  set("adm-users", data.users.total.toLocaleString());
+  set("adm-analyses", data.analyses.allTime.toLocaleString());
+  set("adm-paid", data.users.paidTotal.toLocaleString());
+  set("adm-paid-sub", `${data.users.report} report · ${data.users.pro} pro`);
+  set("adm-avg", data.avgScore ?? "—");
+  set("adm-today", data.analyses.today.toLocaleString());
+  set("adm-conv", data.users.conversionRate + "%");
+  set("admin-last-updated", "Updated " + new Date().toLocaleTimeString());
 
   // Faults chart
-  const fl = document.getElementById('admin-faults-list');
+  const fl = document.getElementById("admin-faults-list");
   if (fl) {
     if (!data.topKillers.length) {
       fl.innerHTML = '<div class="admin-loading">No data yet</div>';
     } else {
       const max = data.topKillers[0].count;
-      fl.innerHTML = data.topKillers.map(k => `
+      fl.innerHTML = data.topKillers
+        .map(
+          (k) => `
         <div class="admin-fault-row">
-          <span class="admin-fault-name">${k.killer || 'Unknown'}</span>
-          <div class="admin-fault-bar-wrap"><div class="admin-fault-bar" style="width:${Math.round(k.count/max*100)}%"></div></div>
+          <span class="admin-fault-name">${k.killer || "Unknown"}</span>
+          <div class="admin-fault-bar-wrap"><div class="admin-fault-bar" style="width:${Math.round((k.count / max) * 100)}%"></div></div>
           <span class="admin-fault-count">${k.count}</span>
-        </div>`).join('');
+        </div>`,
+        )
+        .join("");
     }
   }
 
   // Recent feed
-  const tbody = document.getElementById('admin-recent-tbody');
+  const tbody = document.getElementById("admin-recent-tbody");
   if (tbody) {
     if (!data.recent.length) {
-      tbody.innerHTML = '<tr><td colspan="4" class="admin-table-empty">No analyses yet</td></tr>';
+      tbody.innerHTML =
+        '<tr><td colspan="4" class="admin-table-empty">No analyses yet</td></tr>';
     } else {
-      const cls = s => s >= 70 ? 'adm-score-high' : s >= 50 ? 'adm-score-mid' : 'adm-score-low';
-      tbody.innerHTML = data.recent.map(r => `
+      const cls = (s) =>
+        s >= 70
+          ? "adm-score-high"
+          : s >= 50
+            ? "adm-score-mid"
+            : "adm-score-low";
+      tbody.innerHTML = data.recent
+        .map(
+          (r) => `
         <tr>
           <td class="adm-time">${admRelTime(r.timestamp)}</td>
           <td class="adm-email" title="${r.email}">${r.email}</td>
           <td><span class="adm-score-badge ${cls(r.overallScore)}">${r.overallScore}</span></td>
-          <td class="adm-fault">${r.biggestKiller || '—'}</td>
-        </tr>`).join('');
+          <td class="adm-fault">${r.biggestKiller || "—"}</td>
+        </tr>`,
+        )
+        .join("");
     }
   }
 }
 
 async function admLoadStats() {
   const token = await clerkInstance?.session?.getToken();
-  const res = await fetch('/api/admin/stats', {
+  const res = await fetch("/api/admin/stats", {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) {
@@ -70,24 +92,38 @@ async function admLoadStats() {
 }
 
 async function initAdminDashboard() {
-  showScreen('screen-admin');
-  document.getElementById('admin-faults-list').innerHTML = '<div class="admin-loading">Loading…</div>';
-  document.getElementById('admin-recent-tbody').innerHTML = '<tr><td colspan="4" class="admin-table-empty">Loading…</td></tr>';
+  showScreen("screen-admin");
+  document.getElementById("admin-faults-list").innerHTML =
+    '<div class="admin-loading">Loading…</div>';
+  document.getElementById("admin-recent-tbody").innerHTML =
+    '<tr><td colspan="4" class="admin-table-empty">Loading…</td></tr>';
 
   try {
     const stats = await admLoadStats();
     admRenderStats(stats);
   } catch (err) {
-    document.getElementById('admin-recent-tbody').innerHTML =
+    document.getElementById("admin-recent-tbody").innerHTML =
       `<tr><td colspan="4" class="admin-table-empty" style="color:#ef4444">Error: ${err.message}</td></tr>`;
   }
 
-  document.getElementById('admin-refresh-btn')?.addEventListener('click', async () => {
-    const btn = document.getElementById('admin-refresh-btn');
-    if (btn) { btn.disabled = true; btn.textContent = 'Loading…'; }
-    try { admRenderStats(await admLoadStats()); } catch { /* silent */ }
-    if (btn) { btn.disabled = false; btn.textContent = '↺ Refresh'; }
-  });
+  document
+    .getElementById("admin-refresh-btn")
+    ?.addEventListener("click", async () => {
+      const btn = document.getElementById("admin-refresh-btn");
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = "Loading…";
+      }
+      try {
+        admRenderStats(await admLoadStats());
+      } catch {
+        /* silent */
+      }
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = "↺ Refresh";
+      }
+    });
 }
 
 // ── State ────────────────────────────────────────
@@ -98,215 +134,262 @@ const state = {
   coach: null,
   file: null,
   results: null,
-  analyses: [],   // runtime cache — loaded from server on login
+  analyses: [], // runtime cache — loaded from server on login
   profileLoaded: false,
   calibration: {
-    sliceFrequency:    null,
-    missDirection:     null,
-    balanceLoss:       null,
-    fatShots:          null,
+    sliceFrequency: null,
+    missDirection: null,
+    balanceLoss: null,
+    fatShots: null,
     sevenIronDistance: null,
   },
 };
 
 // ── Screen Router ─────────────────────────────────
-const NAV_SCREENS = new Set(['screen-results', 'screen-progress', 'screen-compare']);
-const NAV_TAB_MAP = { 'screen-results': 'home', 'screen-progress': 'progress', 'screen-compare': 'compare' };
+const NAV_SCREENS = new Set([
+  "screen-results",
+  "screen-progress",
+  "screen-compare",
+]);
+const NAV_TAB_MAP = {
+  "screen-results": "home",
+  "screen-progress": "progress",
+  "screen-compare": "compare",
+};
 
 function showScreen(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document
+    .querySelectorAll(".screen")
+    .forEach((s) => s.classList.remove("active"));
   const target = document.getElementById(id);
   if (target) {
-    target.classList.add('active');
+    target.classList.add("active");
     window.scrollTo(0, 0);
   }
-  const nav = document.getElementById('bottom-nav');
+  const nav = document.getElementById("bottom-nav");
   if (nav) {
     const show = NAV_SCREENS.has(id);
-    nav.classList.toggle('visible', show);
+    nav.classList.toggle("visible", show);
     if (show) {
-      document.querySelectorAll('.nav-tab').forEach(t =>
-        t.classList.toggle('active', t.dataset.tab === NAV_TAB_MAP[id])
-      );
+      document
+        .querySelectorAll(".nav-tab")
+        .forEach((t) =>
+          t.classList.toggle("active", t.dataset.tab === NAV_TAB_MAP[id]),
+        );
     }
   }
 }
 
 // ── Splash ────────────────────────────────────────
-document.getElementById('splash-cta').addEventListener('click', () => {
+document.getElementById("splash-cta").addEventListener("click", () => {
   // Skip onboarding if profile already loaded from DB
-  showScreen(state.profileLoaded ? 'screen-upload' : 'screen-goal');
+  showScreen(state.profileLoaded ? "screen-upload" : "screen-goal");
 });
 
 // ── Goal Selection ────────────────────────────────
-const goalGrid = document.getElementById('goal-grid');
-const goalNext = document.getElementById('goal-next');
+const goalGrid = document.getElementById("goal-grid");
+const goalNext = document.getElementById("goal-next");
 
-goalGrid.querySelectorAll('.goal-card').forEach(btn => {
-  btn.addEventListener('click', () => {
-    goalGrid.querySelectorAll('.goal-card').forEach(b => b.classList.remove('selected'));
-    btn.classList.add('selected');
+goalGrid.querySelectorAll(".goal-card").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    goalGrid
+      .querySelectorAll(".goal-card")
+      .forEach((b) => b.classList.remove("selected"));
+    btn.classList.add("selected");
     state.goal = btn.dataset.goal;
     goalNext.disabled = false;
   });
 });
 
-goalNext.addEventListener('click', () => showScreen('screen-profile'));
+goalNext.addEventListener("click", () => showScreen("screen-profile"));
 
 // ── Profile ───────────────────────────────────────
-const handicapEl  = document.getElementById('handicap');
-const yearsEl     = document.getElementById('years');
-const coachGrid   = document.getElementById('coach-grid');
-const profileNext = document.getElementById('profile-next');
+const handicapEl = document.getElementById("handicap");
+const yearsEl = document.getElementById("years");
+const coachGrid = document.getElementById("coach-grid");
+const profileNext = document.getElementById("profile-next");
 
 function checkProfileComplete() {
   profileNext.disabled = !(state.handicap && state.years && state.coach);
 }
 
-handicapEl.addEventListener('change', () => { state.handicap = handicapEl.value; checkProfileComplete(); });
-yearsEl.addEventListener('change',    () => { state.years = yearsEl.value; checkProfileComplete(); });
+handicapEl.addEventListener("change", () => {
+  state.handicap = handicapEl.value;
+  checkProfileComplete();
+});
+yearsEl.addEventListener("change", () => {
+  state.years = yearsEl.value;
+  checkProfileComplete();
+});
 
-coachGrid.querySelectorAll('.coach-card').forEach(btn => {
-  btn.addEventListener('click', () => {
-    coachGrid.querySelectorAll('.coach-card').forEach(b => b.classList.remove('selected'));
-    btn.classList.add('selected');
+coachGrid.querySelectorAll(".coach-card").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    coachGrid
+      .querySelectorAll(".coach-card")
+      .forEach((b) => b.classList.remove("selected"));
+    btn.classList.add("selected");
     state.coach = btn.dataset.coach;
     checkProfileComplete();
   });
 });
 
-profileNext.addEventListener('click', () => {
+profileNext.addEventListener("click", () => {
   saveProfileToServer();
-  showScreen('screen-upload');
+  showScreen("screen-upload");
 });
 
 // ── Video Upload ──────────────────────────────────
-const uploadZone    = document.getElementById('upload-zone');
-const fileInput     = document.getElementById('file-input');
-const uploadBrowse  = document.getElementById('upload-browse');
-const uploadAnalyse = document.getElementById('upload-analyse');
-const fileInfo      = document.getElementById('upload-file-info');
-const fileNameEl    = document.getElementById('file-name');
-const fileSizeEl    = document.getElementById('file-size');
-const fileRemove    = document.getElementById('file-remove');
+const uploadZone = document.getElementById("upload-zone");
+const fileInput = document.getElementById("file-input");
+const uploadBrowse = document.getElementById("upload-browse");
+const uploadAnalyse = document.getElementById("upload-analyse");
+const fileInfo = document.getElementById("upload-file-info");
+const fileNameEl = document.getElementById("file-name");
+const fileSizeEl = document.getElementById("file-size");
+const fileRemove = document.getElementById("file-remove");
 
 function formatBytes(bytes) {
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+  return (bytes / (1024 * 1024)).toFixed(1) + " MB";
 }
 
 function setFile(file) {
-  if (!file || !file.type.startsWith('video/')) return;
+  if (!file || !file.type.startsWith("video/")) return;
   state.file = file;
   fileNameEl.textContent = file.name;
   fileSizeEl.textContent = formatBytes(file.size);
-  fileInfo.classList.remove('hidden');
-  uploadZone.style.display = 'none';
+  fileInfo.classList.remove("hidden");
+  uploadZone.style.display = "none";
   uploadAnalyse.disabled = false;
 }
 
-uploadBrowse.addEventListener('click', (e) => { e.stopPropagation(); fileInput.click(); });
-uploadZone.addEventListener('click', () => fileInput.click());
-fileInput.addEventListener('change', () => { if (fileInput.files[0]) setFile(fileInput.files[0]); });
-
-fileRemove.addEventListener('click', () => {
-  state.file = null;
-  fileInfo.classList.add('hidden');
-  uploadZone.style.display = '';
-  uploadAnalyse.disabled = true;
-  fileInput.value = '';
+uploadBrowse.addEventListener("click", (e) => {
+  e.stopPropagation();
+  fileInput.click();
+});
+uploadZone.addEventListener("click", () => fileInput.click());
+fileInput.addEventListener("change", () => {
+  if (fileInput.files[0]) setFile(fileInput.files[0]);
 });
 
-uploadZone.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.classList.add('dragging'); });
-uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragging'));
-uploadZone.addEventListener('drop', (e) => {
+fileRemove.addEventListener("click", () => {
+  state.file = null;
+  state.results = null;
+  fileInfo.classList.add("hidden");
+  uploadZone.style.display = "";
+  uploadAnalyse.disabled = true;
+  fileInput.value = "";
+});
+
+uploadZone.addEventListener("dragover", (e) => {
   e.preventDefault();
-  uploadZone.classList.remove('dragging');
+  uploadZone.classList.add("dragging");
+});
+uploadZone.addEventListener("dragleave", () =>
+  uploadZone.classList.remove("dragging"),
+);
+uploadZone.addEventListener("drop", (e) => {
+  e.preventDefault();
+  uploadZone.classList.remove("dragging");
   const file = e.dataTransfer.files[0];
   if (file) setFile(file);
 });
 
-uploadAnalyse.addEventListener('click', () => {
-  showScreen('screen-questions');
+uploadAnalyse.addEventListener("click", () => {
+  showScreen("screen-questions");
 });
 
 // ── Quick Questions ────────────────────────────────
-const questionsNext = document.getElementById('questions-next');
-const Q_KEYS = ['sliceFrequency', 'missDirection', 'balanceLoss', 'fatShots', 'sevenIronDistance'];
+const questionsNext = document.getElementById("questions-next");
+const Q_KEYS = [
+  "sliceFrequency",
+  "missDirection",
+  "balanceLoss",
+  "fatShots",
+  "sevenIronDistance",
+];
 
 function checkQuestionsComplete() {
-  const answered = Q_KEYS.filter(k => state.calibration[k] !== null).length;
+  const answered = Q_KEYS.filter((k) => state.calibration[k] !== null).length;
   questionsNext.disabled = answered < Q_KEYS.length;
 }
 
-document.querySelectorAll('.q-option').forEach(btn => {
-  btn.addEventListener('click', () => {
+document.querySelectorAll(".q-option").forEach((btn) => {
+  btn.addEventListener("click", () => {
     const q = btn.dataset.q;
-    document.querySelectorAll(`.q-option[data-q="${q}"]`).forEach(b => b.classList.remove('selected'));
-    btn.classList.add('selected');
+    document
+      .querySelectorAll(`.q-option[data-q="${q}"]`)
+      .forEach((b) => b.classList.remove("selected"));
+    btn.classList.add("selected");
     state.calibration[Q_KEYS[parseInt(q) - 1]] = btn.dataset.val;
     checkQuestionsComplete();
   });
 });
 
-questionsNext.addEventListener('click', () => {
-  showScreen('screen-analysing');
+questionsNext.addEventListener("click", () => {
+  showScreen("screen-analysing");
   runAnalysis();
 });
 
 // ── Analysis ──────────────────────────────────────
 // Steps 0-3 animate slowly; step 4 activates and stays spinning until completeLastStep() is called
 async function animateSteps() {
-  const items = document.querySelectorAll('.step-item');
+  const items = document.querySelectorAll(".step-item");
   const durations = [4200, 4800, 5000, 4400];
   for (let i = 0; i < durations.length; i++) {
-    items[i].classList.add('active');
+    items[i].classList.add("active");
     await wait(durations[i]);
-    items[i].classList.remove('active');
-    items[i].classList.add('done');
+    items[i].classList.remove("active");
+    items[i].classList.add("done");
   }
   // Activate last step — leave it spinning; caller must call completeLastStep()
-  items[4].classList.add('active');
-  const hint = document.getElementById('analysing-wait-hint');
-  if (hint) hint.classList.add('visible');
+  items[4].classList.add("active");
+  const hint = document.getElementById("analysing-wait-hint");
+  if (hint) hint.classList.add("visible");
 }
 
 function completeLastStep() {
-  const items = document.querySelectorAll('.step-item');
+  const items = document.querySelectorAll(".step-item");
   const last = items[items.length - 1];
-  last.classList.remove('active');
-  last.classList.add('done');
-  const hint = document.getElementById('analysing-wait-hint');
-  if (hint) hint.classList.remove('visible');
+  last.classList.remove("active");
+  last.classList.add("done");
+  const hint = document.getElementById("analysing-wait-hint");
+  if (hint) hint.classList.remove("visible");
 }
 
 async function extractFrames(file, count = 12) {
   // ── Image file: read as a single frame directly ──
-  if (file.type.startsWith('image/')) {
-    console.log('[extractFrames] Image file detected — reading as single frame');
+  if (file.type.startsWith("image/")) {
+    console.log(
+      "[extractFrames] Image file detected — reading as single frame",
+    );
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = (e) => {
         const img = new Image();
         img.onload = () => {
-          const canvas = document.createElement('canvas');
-          canvas.width  = 640;
+          const canvas = document.createElement("canvas");
+          canvas.width = 640;
           canvas.height = Math.round(640 * (img.height / img.width));
-          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-          const b64 = canvas.toDataURL('image/jpeg', 0.85).split(',')[1];
-          console.log(`[extractFrames] Image frame extracted (${canvas.width}×${canvas.height})`);
+          canvas
+            .getContext("2d")
+            .drawImage(img, 0, 0, canvas.width, canvas.height);
+          const b64 = canvas.toDataURL("image/jpeg", 0.85).split(",")[1];
+          console.log(
+            `[extractFrames] Image frame extracted (${canvas.width}×${canvas.height})`,
+          );
           resolve([b64]);
         };
-        img.onerror = () => reject(new Error('Could not load the image file.'));
+        img.onerror = () => reject(new Error("Could not load the image file."));
         img.src = e.target.result;
       };
-      reader.onerror = () => reject(new Error('Could not read the file.'));
+      reader.onerror = () => reject(new Error("Could not read the file."));
       reader.readAsDataURL(file);
     });
   }
 
   // ── Video file: extract frames with mobile-safe seeking ──
-  console.log('[extractFrames] Video file detected — extracting frames');
+  console.log("[extractFrames] Video file detected — extracting frames");
 
   const objectUrl = URL.createObjectURL(file);
 
@@ -314,7 +397,7 @@ async function extractFrames(file, count = 12) {
   function captureCurrentFrame(video, canvas, ctx) {
     try {
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      return canvas.toDataURL('image/jpeg', 0.6).split(',')[1];
+      return canvas.toDataURL("image/jpeg", 0.6).split(",")[1];
     } catch {
       return null;
     }
@@ -326,38 +409,57 @@ async function extractFrames(file, count = 12) {
   function seekTo(video, time, timeoutMs = 5000) {
     return new Promise((resolve) => {
       let done = false;
-      const finish = () => { if (!done) { done = true; resolve(); } };
+      const finish = () => {
+        if (!done) {
+          done = true;
+          resolve();
+        }
+      };
       const timer = setTimeout(() => {
-        console.warn(`[extractFrames] Seek timeout at ${time.toFixed(2)}s — using current frame`);
+        console.warn(
+          `[extractFrames] Seek timeout at ${time.toFixed(2)}s — using current frame`,
+        );
         finish();
       }, timeoutMs);
-      video.addEventListener('seeked', () => { clearTimeout(timer); finish(); }, { once: true });
+      video.addEventListener(
+        "seeked",
+        () => {
+          clearTimeout(timer);
+          finish();
+        },
+        { once: true },
+      );
       video.currentTime = time;
     });
   }
 
   return new Promise((resolve) => {
-    const video  = document.createElement('video');
-    const canvas = document.createElement('canvas');
-    const ctx    = canvas.getContext('2d');
+    const video = document.createElement("video");
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
     const frames = [];
 
     // ── Mobile-specific attributes ──
-    video.muted        = true;
-    video.playsInline  = true;           // required for iOS autoplay / seeking
-    video.preload      = 'auto';         // load enough data to seek on mobile
-    video.setAttribute('webkit-playsinline', 'true'); // older iOS Safari
-    video.crossOrigin  = 'anonymous';
-    video.src          = objectUrl;
+    video.muted = true;
+    video.playsInline = true; // required for iOS autoplay / seeking
+    video.preload = "auto"; // load enough data to seek on mobile
+    video.setAttribute("webkit-playsinline", "true"); // older iOS Safari
+    video.crossOrigin = "anonymous";
+    video.src = objectUrl;
 
     // Overall safety net — if the whole thing hangs, return whatever we have
     const overallTimer = setTimeout(() => {
-      console.warn(`[extractFrames] Overall timeout — returning ${frames.length} frame(s) collected so far`);
+      console.warn(
+        `[extractFrames] Overall timeout — returning ${frames.length} frame(s) collected so far`,
+      );
       URL.revokeObjectURL(objectUrl);
       resolve(frames.length > 0 ? frames : []);
     }, 35000);
 
-    const cleanup = () => { clearTimeout(overallTimer); URL.revokeObjectURL(objectUrl); };
+    const cleanup = () => {
+      clearTimeout(overallTimer);
+      URL.revokeObjectURL(objectUrl);
+    };
 
     // Guard so onReady only runs once even if both loadeddata + loadedmetadata fire
     let readyFired = false;
@@ -367,17 +469,21 @@ async function extractFrames(file, count = 12) {
     const onReady = async () => {
       if (readyFired) return;
       readyFired = true;
-      canvas.width  = 320;
+      canvas.width = 320;
       canvas.height = 180;
 
       const duration = video.duration;
       const validDuration = isFinite(duration) && duration > 0;
-      console.log(`[extractFrames] duration=${duration}, validDuration=${validDuration}`);
+      console.log(
+        `[extractFrames] duration=${duration}, validDuration=${validDuration}`,
+      );
 
       if (!validDuration) {
         // iOS HEVC / unusual codec: duration is Infinity or NaN.
         // Capture a single frame at the very start as fallback.
-        console.warn('[extractFrames] Unknown duration — capturing single frame at t=0');
+        console.warn(
+          "[extractFrames] Unknown duration — capturing single frame at t=0",
+        );
         await seekTo(video, 0.1, 3000);
         const b = captureCurrentFrame(video, canvas, ctx);
         if (b) frames.push(b);
@@ -388,7 +494,9 @@ async function extractFrames(file, count = 12) {
 
       // Seek to count evenly-spaced positions
       const step = duration / (count + 1);
-      console.log(`[extractFrames] Extracting ${count} frames over ${duration.toFixed(2)}s (step=${step.toFixed(2)}s)`);
+      console.log(
+        `[extractFrames] Extracting ${count} frames over ${duration.toFixed(2)}s (step=${step.toFixed(2)}s)`,
+      );
 
       for (let i = 1; i <= count; i++) {
         await seekTo(video, step * i, 5000);
@@ -400,7 +508,7 @@ async function extractFrames(file, count = 12) {
 
       // Fallback: if we got nothing at all, try once more at t=0
       if (frames.length === 0) {
-        console.warn('[extractFrames] All seeks failed — falling back to t=0');
+        console.warn("[extractFrames] All seeks failed — falling back to t=0");
         await seekTo(video, 0, 3000);
         const b = captureCurrentFrame(video, canvas, ctx);
         if (b) frames.push(b);
@@ -411,15 +519,19 @@ async function extractFrames(file, count = 12) {
     };
 
     // loadeddata fires when the browser has buffered at least the first frame
-    video.addEventListener('loadeddata', onReady, { once: true });
+    video.addEventListener("loadeddata", onReady, { once: true });
 
     // loadedmetadata as secondary trigger on browsers that skip loadeddata
-    video.addEventListener('loadedmetadata', () => {
-      if (video.readyState >= 2) onReady(); // readyState 2 = HAVE_CURRENT_DATA
-    }, { once: true });
+    video.addEventListener(
+      "loadedmetadata",
+      () => {
+        if (video.readyState >= 2) onReady(); // readyState 2 = HAVE_CURRENT_DATA
+      },
+      { once: true },
+    );
 
-    video.addEventListener('error', (e) => {
-      console.error('[extractFrames] Video element error:', e, video.error);
+    video.addEventListener("error", (e) => {
+      console.error("[extractFrames] Video element error:", e, video.error);
       cleanup();
       // Don't reject — return empty array so runAnalysis shows the right message
       resolve([]);
@@ -431,44 +543,50 @@ async function extractFrames(file, count = 12) {
 
 async function callVideoAPI(file) {
   const salt = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  console.log(`[callVideoAPI] salt=${salt} | video="${file.name}" | size=${(file.size / 1024 / 1024).toFixed(2)} MB | type=${file.type}`);
+  console.log(
+    `[callVideoAPI] salt=${salt} | video="${file.name}" | size=${(file.size / 1024 / 1024).toFixed(2)} MB | type=${file.type}`,
+  );
 
   const formData = new FormData();
-  formData.append('video', file);
-  formData.append('goal',         state.goal        || '');
-  formData.append('averageScore', state.handicap    || '');
-  formData.append('years',        state.years       || '');
-  formData.append('coach',        state.coach       || '');
-  formData.append('calibration',  JSON.stringify(state.calibration));
+  formData.append("video", file);
+  formData.append("goal", state.goal || "");
+  formData.append("averageScore", state.handicap || "");
+  formData.append("years", state.years || "");
+  formData.append("coach", state.coach || "");
+  formData.append("calibration", JSON.stringify(state.calibration));
 
   // salt in URL ensures no HTTP/proxy cache hit; cache:'no-store' prevents browser cache
   const response = await fetch(`/api/analyse-video?_salt=${salt}`, {
-    method: 'POST',
-    cache: 'no-store',
+    method: "POST",
+    cache: "no-store",
     body: formData,
   });
 
   console.log(`[callVideoAPI] Response status: ${response.status}`);
   if (!response.ok) {
-    const err = await response.json().catch(() => ({ error: response.statusText }));
-    console.error('[callVideoAPI] FULL ERROR:', JSON.stringify(err, null, 2));
+    const err = await response
+      .json()
+      .catch(() => ({ error: response.statusText }));
+    console.error("[callVideoAPI] FULL ERROR:", JSON.stringify(err, null, 2));
     throw new Error(err.error || `Server error ${response.status}`);
   }
 
   const data = await response.json();
-  console.log('[callVideoAPI] FULL RESPONSE:', JSON.stringify(data, null, 2));
+  console.log("[callVideoAPI] FULL RESPONSE:", JSON.stringify(data, null, 2));
   return data;
 }
 
 async function callAPI(frames) {
   const salt = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const totalKb = Math.round(frames.reduce((s, f) => s + f.length, 0) / 1024);
-  console.log(`[callAPI] salt=${salt} | frames=${frames.length} | total payload ~${totalKb} KB`);
+  console.log(
+    `[callAPI] salt=${salt} | frames=${frames.length} | total payload ~${totalKb} KB`,
+  );
 
   const response = await fetch(`/api/analyse?_salt=${salt}`, {
-    method: 'POST',
-    cache: 'no-store',
-    headers: { 'Content-Type': 'application/json' },
+    method: "POST",
+    cache: "no-store",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       frames,
       goal: state.goal,
@@ -481,18 +599,20 @@ async function callAPI(frames) {
 
   console.log(`[callAPI] Response status: ${response.status}`);
   if (!response.ok) {
-    const err = await response.json().catch(() => ({ error: response.statusText }));
-    console.error('[callAPI] FULL ERROR:', JSON.stringify(err, null, 2));
+    const err = await response
+      .json()
+      .catch(() => ({ error: response.statusText }));
+    console.error("[callAPI] FULL ERROR:", JSON.stringify(err, null, 2));
     throw new Error(err.error || `Server error ${response.status}`);
   }
 
   const data = await response.json();
-  console.log('[callAPI] FULL RESPONSE:', JSON.stringify(data, null, 2));
+  console.log("[callAPI] FULL RESPONSE:", JSON.stringify(data, null, 2));
   return data;
 }
 
 async function showError(message) {
-  const el = document.getElementById('screen-analysing');
+  const el = document.getElementById("screen-analysing");
   el.innerHTML = `
     <div class="screen-inner analysing-inner" style="gap:24px">
       <div style="font-size:3rem">⚠️</div>
@@ -503,58 +623,79 @@ async function showError(message) {
 }
 
 async function runAnalysis() {
+  // Clear any previous result so a failed/aborted run never re-displays stale data
+  state.results = null;
+
   // Steps 0-3 animate slowly; resolves once step 4 is active and spinning
   const stepsReadyPromise = animateSteps();
 
   try {
-    const isVideo = state.file?.type?.startsWith('video/');
+    const isVideo = state.file?.type?.startsWith("video/");
 
     if (isVideo) {
       // ── Primary path: Gemini 2.5 Pro native video analysis ──
-      console.log('[runAnalysis] Video detected — trying Gemini 2.5 Pro native analysis');
+      console.log(
+        "[runAnalysis] Video detected — trying Gemini 2.5 Pro native analysis",
+      );
       try {
         // Run API and step animation concurrently; wait for both before proceeding
-        const [result] = await Promise.all([callVideoAPI(state.file), stepsReadyPromise]);
+        const [result] = await Promise.all([
+          callVideoAPI(state.file),
+          stepsReadyPromise,
+        ]);
         state.results = result;
         completeLastStep();
         await wait(1000);
-        showScreen('screen-results');
+        showScreen("screen-results");
         renderResults(state.results);
         return;
       } catch (geminiErr) {
-        console.warn('[runAnalysis] Gemini failed, falling back to Claude frame analysis:', geminiErr.message);
+        console.warn(
+          "[runAnalysis] Gemini failed, falling back to Claude frame analysis:",
+          geminiErr.message,
+        );
         // Fall through — stepsReadyPromise may still be running; re-awaited below
       }
     }
 
     // ── Fallback / image path: extract frames → Claude ──
-    console.log('[runAnalysis] Extracting frames from file:', state.file?.name, state.file?.type);
+    console.log(
+      "[runAnalysis] Extracting frames from file:",
+      state.file?.name,
+      state.file?.type,
+    );
     const frames = await extractFrames(state.file);
 
     if (frames.length === 0) {
-      throw new Error('No frames could be extracted from the file. Make sure you upload a video (MP4/MOV) or image (JPG/PNG).');
+      throw new Error(
+        "No frames could be extracted from the file. Make sure you upload a video (MP4/MOV) or image (JPG/PNG).",
+      );
     }
 
-    console.log(`[runAnalysis] Extracted ${frames.length} frame(s), calling Claude API…`);
+    console.log(
+      `[runAnalysis] Extracted ${frames.length} frame(s), calling Claude API…`,
+    );
     const [result] = await Promise.all([callAPI(frames), stepsReadyPromise]);
     state.results = result;
     completeLastStep();
     await wait(1000);
-    showScreen('screen-results');
+    showScreen("screen-results");
     renderResults(state.results);
   } catch (err) {
-    console.error('[runAnalysis] Error:', err);
+    console.error("[runAnalysis] Error:", err);
     await stepsReadyPromise; // ensure step 4 is active before showing error
     completeLastStep();
-    showError(err.message || 'Unknown error. Check the browser console for details.');
+    showError(
+      err.message || "Unknown error. Check the browser console for details.",
+    );
   }
 }
 
 // ── Results Rendering ─────────────────────────────
 function getBarColor(score) {
-  if (score >= 75) return '#00C46A';
-  if (score >= 55) return '#f59e0b';
-  return '#ef4444';
+  if (score >= 75) return "#00C46A";
+  if (score >= 55) return "#f59e0b";
+  return "#ef4444";
 }
 
 function gateCard(html) {
@@ -563,13 +704,13 @@ function gateCard(html) {
 
 function renderResults(data) {
   const hasReport = hasReportAccess();
-  const hasPro    = hasProAccess();
+  const hasPro = hasProAccess();
 
   // ── Score Ring (always) ─────────────────────────
   const circumference = 2 * Math.PI * 85;
   const offset = circumference - (data.overallScore / 100) * circumference;
-  const ring = document.getElementById('ring-fill');
-  const scoreNum = document.getElementById('score-number');
+  const ring = document.getElementById("ring-fill");
+  const scoreNum = document.getElementById("score-number");
   ring.style.strokeDasharray = circumference;
   ring.style.strokeDashoffset = circumference;
   requestAnimationFrame(() => {
@@ -580,16 +721,16 @@ function renderResults(data) {
   });
 
   // ── Handicap Estimate (Report+) ─────────────────
-  const hcCard = document.getElementById('handicap-estimate-card');
+  const hcCard = document.getElementById("handicap-estimate-card");
   if (hasReport && data.handicapEstimate) {
-    hcCard.removeAttribute('data-locked');
+    hcCard.removeAttribute("data-locked");
     hcCard.innerHTML = `
       <div class="hc-badge">🏌️ ESTIMATED HANDICAP RANGE</div>
       <h2 class="hc-range">${data.handicapEstimate.range} handicap</h2>
       <p class="hc-reason">${data.handicapEstimate.reason}</p>`;
-    hcCard.classList.remove('hidden');
+    hcCard.classList.remove("hidden");
   } else if (!hasReport) {
-    hcCard.setAttribute('data-locked', '');
+    hcCard.setAttribute("data-locked", "");
     hcCard.innerHTML = gateCard(`
       <div class="gate-icon">🏌️</div>
       <div class="gate-title">ESTIMATED HANDICAP RANGE</div>
@@ -597,26 +738,28 @@ function renderResults(data) {
       <a class="gate-btn gate-btn--report" href="${WHOP_REPORT}" target="_blank" rel="noopener">Get Report — £7.99</a>
       <div class="gate-or">or</div>
       <a class="gate-btn gate-btn--pro" href="${WHOP_PRO}" target="_blank" rel="noopener">Go Pro — £14.99/mo</a>`);
-    hcCard.classList.remove('hidden');
+    hcCard.classList.remove("hidden");
   }
 
   // ── Biggest Killer (always) ─────────────────────
-  document.getElementById('killer-title').textContent = data.biggestKiller;
-  document.getElementById('killer-desc').textContent  = data.biggestKillerDesc || '';
+  document.getElementById("killer-title").textContent = data.biggestKiller;
+  document.getElementById("killer-desc").textContent =
+    data.biggestKillerDesc || "";
   if (data.potentialGain) {
-    document.getElementById('killer-gain-value').textContent = data.potentialGain;
-    document.getElementById('killer-gain').classList.remove('hidden');
+    document.getElementById("killer-gain-value").textContent =
+      data.potentialGain;
+    document.getElementById("killer-gain").classList.remove("hidden");
   }
 
   // ── Variables (Report+ = all 11, Free = first 3 + gate) ──
-  const varList = document.getElementById('variables-list');
-  varList.innerHTML = '';
+  const varList = document.getElementById("variables-list");
+  varList.innerHTML = "";
   const varEntries = Object.entries(data.variables);
   const visibleVars = hasReport ? varEntries : varEntries.slice(0, 3);
 
   visibleVars.forEach(([name, score]) => {
-    const item = document.createElement('div');
-    item.className = 'variable-item';
+    const item = document.createElement("div");
+    item.className = "variable-item";
     item.innerHTML = `
       <div class="variable-header">
         <span class="variable-name">${name}</span>
@@ -629,7 +772,7 @@ function renderResults(data) {
   });
 
   if (!hasReport) {
-    const lock = document.createElement('div');
+    const lock = document.createElement("div");
     lock.innerHTML = gateCard(`
       <div class="gate-icon">📊</div>
       <div class="gate-title">+ ${varEntries.length - 3} MORE VARIABLES</div>
@@ -641,30 +784,40 @@ function renderResults(data) {
   }
 
   setTimeout(() => {
-    varList.querySelectorAll('.variable-bar-fill').forEach(bar => {
-      bar.style.width = bar.dataset.score + '%';
+    varList.querySelectorAll(".variable-bar-fill").forEach((bar) => {
+      bar.style.width = bar.dataset.score + "%";
     });
   }, 100);
 
   // ── Drills (Free = 2, Report+ = all) ───────────
-  const drillsList = document.getElementById('drills-list');
-  drillsList.innerHTML = '';
+  const drillsList = document.getElementById("drills-list");
+  drillsList.innerHTML = "";
   const allDrills = data.drills || [];
   const drillsToShow = hasReport ? allDrills : allDrills.slice(0, 2);
 
+  const analysisTs = new Date().toISOString().slice(0, 10);
   drillsToShow.forEach((drill, i) => {
-    const card = document.createElement('div');
-    card.className = 'drill-card';
+    const done = isDrillDone(analysisTs, i);
+    const card = document.createElement("div");
+    card.className = "drill-card";
     card.innerHTML = `
       <span class="drill-number">Drill ${i + 1}</span>
       <span class="drill-name">${drill.name}</span>
       <p class="drill-desc">${drill.desc}</p>
-      <span class="drill-reps">📅 ${drill.reps}</span>`;
+      <span class="drill-reps">📅 ${drill.reps}</span>
+      <button class="drill-complete-btn ${done ? "done" : ""}" data-drill="${i}">
+        <span class="check-icon">${done ? "✓" : "○"}</span> ${done ? "Completed" : "Mark as done"}
+      </button>`;
+    card
+      .querySelector(".drill-complete-btn")
+      .addEventListener("click", function () {
+        toggleDrill(analysisTs, i, this);
+      });
     drillsList.appendChild(card);
   });
 
   if (!hasReport && allDrills.length > 2) {
-    const lock = document.createElement('div');
+    const lock = document.createElement("div");
     lock.innerHTML = gateCard(`
       <div class="gate-icon">🏋️</div>
       <div class="gate-title">+ ${allDrills.length - 2} MORE DRILLS</div>
@@ -674,53 +827,56 @@ function renderResults(data) {
   }
 
   // ── Improvement Forecast (Report+) ─────────────
-  const forecastCard = document.getElementById('improvement-forecast-card');
+  const forecastCard = document.getElementById("improvement-forecast-card");
   if (hasReport) {
     renderImprovementForecast(data);
-    forecastCard.classList.remove('hidden');
+    forecastCard.classList.remove("hidden");
   } else {
-    forecastCard.classList.add('hidden');
+    forecastCard.classList.add("hidden");
   }
 
   // ── PDF Download (Report+) ──────────────────────
-  const pdfSection = document.getElementById('pdf-download-section');
-  if (pdfSection) pdfSection.classList.toggle('hidden', !hasReport);
+  const pdfSection = document.getElementById("pdf-download-section");
+  if (pdfSection) pdfSection.classList.toggle("hidden", !hasReport);
 
   // ── Coach Message (always) ──────────────────────
-  document.getElementById('coach-message-text').textContent = '"' + data.coachMessage + '"';
+  document.getElementById("coach-message-text").textContent =
+    '"' + data.coachMessage + '"';
 
   // ── Coaching History (Pro+) ─────────────────────
-  const historySection = document.getElementById('coaching-history-section');
+  const historySection = document.getElementById("coaching-history-section");
   if (hasPro) {
     renderCoachingHistory();
-    historySection.classList.remove('hidden');
+    historySection.classList.remove("hidden");
   } else {
-    historySection.classList.add('hidden');
+    historySection.classList.add("hidden");
   }
 
   // ── Upgrade Cards ────────────────────────────────
-  const reportCard = document.querySelector('.upgrade-card--report');
-  const proCard    = document.querySelector('.upgrade-card--pro');
-  if (reportCard) reportCard.style.display = hasReport ? 'none' : '';
-  if (proCard)    proCard.style.display    = hasPro    ? 'none' : '';
+  const reportCard = document.querySelector(".upgrade-card--report");
+  const proCard = document.querySelector(".upgrade-card--pro");
+  if (reportCard) reportCard.style.display = hasReport ? "none" : "";
+  if (proCard) proCard.style.display = hasPro ? "none" : "";
 
   saveAnalysis(data);
 }
 
 function renderImprovementForecast(data) {
-  const el = document.getElementById('forecast-timeline');
+  const el = document.getElementById("forecast-timeline");
   if (!el) return;
   const score = data.overallScore;
   const headroom = 100 - score;
-  const w4  = Math.min(score + Math.round(headroom * 0.12), 99);
-  const w8  = Math.min(score + Math.round(headroom * 0.22), 99);
+  const w4 = Math.min(score + Math.round(headroom * 0.12), 99);
+  const w8 = Math.min(score + Math.round(headroom * 0.22), 99);
   const w12 = Math.min(score + Math.round(headroom * 0.32), 99);
 
   el.innerHTML = [
-    { label: '4 weeks',  val: w4  },
-    { label: '8 weeks',  val: w8  },
-    { label: '12 weeks', val: w12 },
-  ].map(({ label, val }) => `
+    { label: "4 weeks", val: w4 },
+    { label: "8 weeks", val: w8 },
+    { label: "12 weeks", val: w12 },
+  ]
+    .map(
+      ({ label, val }) => `
     <div class="forecast-row">
       <span class="forecast-week">${label}</span>
       <div class="forecast-bar-wrap">
@@ -730,57 +886,80 @@ function renderImprovementForecast(data) {
         </div>
       </div>
       <span class="forecast-score">${val}<span class="forecast-delta">+${val - score}</span></span>
-    </div>`).join('');
+    </div>`,
+    )
+    .join("");
 }
 
 function renderCoachingHistory() {
-  const el = document.getElementById('coaching-history-list');
+  const el = document.getElementById("coaching-history-list");
   if (!el) return;
   const analyses = getAnalyses();
   if (analyses.length === 0) {
-    el.innerHTML = '<p class="coaching-history-empty">Complete your first analysis to start building your coaching history.</p>';
+    el.innerHTML =
+      '<p class="coaching-history-empty">Complete your first analysis to start building your coaching history.</p>';
     return;
   }
-  const fmt = ts => new Date(ts).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-  el.innerHTML = analyses.slice().reverse().slice(0, 10).map(a => `
+  const fmt = (ts) =>
+    new Date(ts).toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  el.innerHTML = analyses
+    .slice()
+    .reverse()
+    .slice(0, 10)
+    .map(
+      (a) => `
     <div class="coaching-history-item">
       <div class="coaching-history-left">
         <span class="coaching-history-date">${fmt(a.timestamp)}</span>
-        <span class="coaching-history-goal">${a.goal || 'Analysis'}</span>
+        <span class="coaching-history-goal">${a.goal || "Analysis"}</span>
         <span class="coaching-history-killer">⚡ ${a.biggestKiller}</span>
       </div>
       <div class="coaching-history-right">
         <span class="coaching-history-score" style="color:${getBarColor(a.overallScore)}">${a.overallScore}</span>
         <span class="coaching-history-label">score</span>
       </div>
-    </div>`).join('');
+    </div>`,
+    )
+    .join("");
 }
 
 // ── Restart ───────────────────────────────────────
-document.getElementById('results-restart').addEventListener('click', () => {
+document.getElementById("results-restart").addEventListener("click", () => {
   // Clear file + results; keep profile fields when already persisted
-  state.file = null; state.results = null;
+  state.file = null;
+  state.results = null;
   if (!state.profileLoaded) {
-    state.goal = null; state.handicap = null; state.years = null; state.coach = null;
-    document.querySelectorAll('.goal-card, .coach-card').forEach(c => c.classList.remove('selected'));
-    document.getElementById('goal-next').disabled = true;
-    document.getElementById('profile-next').disabled = true;
-    document.getElementById('handicap').selectedIndex = 0;
-    document.getElementById('years').selectedIndex = 0;
+    state.goal = null;
+    state.handicap = null;
+    state.years = null;
+    state.coach = null;
+    document
+      .querySelectorAll(".goal-card, .coach-card")
+      .forEach((c) => c.classList.remove("selected"));
+    document.getElementById("goal-next").disabled = true;
+    document.getElementById("profile-next").disabled = true;
+    document.getElementById("handicap").selectedIndex = 0;
+    document.getElementById("years").selectedIndex = 0;
   }
-  fileInfo.classList.add('hidden');
-  uploadZone.style.display = '';
+  fileInfo.classList.add("hidden");
+  uploadZone.style.display = "";
   uploadAnalyse.disabled = true;
-  fileInput.value = '';
-  document.querySelectorAll('.step-item').forEach(s => { s.classList.remove('active', 'done'); });
+  fileInput.value = "";
+  document.querySelectorAll(".step-item").forEach((s) => {
+    s.classList.remove("active", "done");
+  });
 
   // Skip onboarding when profile is already saved
-  showScreen(state.profileLoaded ? 'screen-upload' : 'screen-splash');
+  showScreen(state.profileLoaded ? "screen-upload" : "screen-splash");
 });
 
 // ── Utilities ─────────────────────────────────────
 function wait(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function animateCounter(el, from, to, duration) {
@@ -797,15 +976,19 @@ function animateCounter(el, from, to, duration) {
 
 // ── Subscription & Tier ───────────────────────────
 const TIER_LEVELS = { free: 0, report: 1, pro: 2 };
-const WHOP_REPORT = 'https://whop.com/swingclinic/swing-analysis-report/';
-const WHOP_PRO    = 'https://whop.com/swingclinic/swing-clinic-pro/';
-const TIER_LABELS = { free: 'FREE', report: 'REPORT', pro: 'PRO' };
-const TIER_DESC   = { free: 'Basic access', report: 'Full report access', pro: 'Unlimited pro coaching' };
+const WHOP_REPORT = "https://whop.com/swingclinic/swing-analysis-report/";
+const WHOP_PRO = "https://whop.com/swingclinic/swing-clinic-pro/";
+const TIER_LABELS = { free: "FREE", report: "REPORT", pro: "PRO" };
+const TIER_DESC = {
+  free: "Basic access",
+  report: "Full report access",
+  pro: "Unlimited pro coaching",
+};
 
 function getTier() {
   const clerkTier = window._swingClinicTier;
   if (clerkTier && TIER_LEVELS[clerkTier] !== undefined) return clerkTier;
-  return 'free';
+  return "free";
 }
 
 function syncTierFromClerk(user) {
@@ -815,18 +998,24 @@ function syncTierFromClerk(user) {
   }
 }
 
-function hasReportAccess() { return TIER_LEVELS[getTier()] >= TIER_LEVELS.report; }
-function hasProAccess()    { return TIER_LEVELS[getTier()] >= TIER_LEVELS.pro; }
-function isPro()           { return hasProAccess(); }
+function hasReportAccess() {
+  return TIER_LEVELS[getTier()] >= TIER_LEVELS.report;
+}
+function hasProAccess() {
+  return TIER_LEVELS[getTier()] >= TIER_LEVELS.pro;
+}
+function isPro() {
+  return hasProAccess();
+}
 
 function updateUserBadge() {
   const tier = getTier();
-  const emailEl = document.getElementById('user-badge-email');
+  const emailEl = document.getElementById("user-badge-email");
   if (emailEl && state.userEmail) emailEl.textContent = state.userEmail;
-  const planEl = document.getElementById('user-badge-plan');
+  const planEl = document.getElementById("user-badge-plan");
   if (planEl) {
-    planEl.textContent = TIER_LABELS[tier] || 'FREE';
-    planEl.className = 'plan-badge plan-badge--' + tier;
+    planEl.textContent = TIER_LABELS[tier] || "FREE";
+    planEl.className = "plan-badge plan-badge--" + tier;
   }
 }
 
@@ -838,7 +1027,9 @@ async function initClerk() {
     // Fetch publishable key from API server (which has access to Replit secrets)
     let publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
     if (!publishableKey) {
-      const cfg = await fetch('/api/config').then(r => r.json()).catch(() => ({}));
+      const cfg = await fetch("/api/config")
+        .then((r) => r.json())
+        .catch(() => ({}));
       publishableKey = cfg.clerkPublishableKey;
     }
 
@@ -850,25 +1041,25 @@ async function initClerk() {
       proxyUrl: import.meta.env.VITE_CLERK_PROXY_URL || undefined,
       appearance: {
         variables: {
-          colorPrimary: '#00C46A',
-          colorBackground: '#111111',
-          colorForeground: '#ffffff',
-          colorMutedForeground: '#888888',
-          colorDanger: '#ef4444',
-          colorInput: '#1a1a1a',
-          colorInputForeground: '#ffffff',
-          colorNeutral: '#333333',
+          colorPrimary: "#00C46A",
+          colorBackground: "#111111",
+          colorForeground: "#ffffff",
+          colorMutedForeground: "#888888",
+          colorDanger: "#ef4444",
+          colorInput: "#1a1a1a",
+          colorInputForeground: "#ffffff",
+          colorNeutral: "#333333",
           fontFamily: '"DM Sans", sans-serif',
-          borderRadius: '12px',
+          borderRadius: "12px",
         },
       },
     });
 
     if (clerkInstance.user) {
-      const email = clerkInstance.user.primaryEmailAddress?.emailAddress ?? '';
+      const email = clerkInstance.user.primaryEmailAddress?.emailAddress ?? "";
       if (IS_ADMIN_ROUTE) {
         if (email.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
-          window.location.replace('/');
+          window.location.replace("/");
           return;
         }
         await initAdminDashboard();
@@ -878,53 +1069,65 @@ async function initClerk() {
       state.userEmail = email;
       updateUserBadge();
       await Promise.all([loadProfileFromServer(), loadAnalysesFromServer()]);
-      showScreen('screen-splash');
+      showScreen("screen-splash");
     } else {
       if (IS_ADMIN_ROUTE) {
-        showScreen('screen-auth');
+        showScreen("screen-auth");
         // after sign-in, re-check for admin
       } else {
-        showScreen('screen-auth');
+        showScreen("screen-auth");
       }
     }
 
     clerkInstance.addListener(async ({ user }) => {
       if (user) {
-        const email = user.primaryEmailAddress?.emailAddress ?? '';
+        const email = user.primaryEmailAddress?.emailAddress ?? "";
         if (IS_ADMIN_ROUTE) {
           if (email.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
-            window.location.replace('/');
+            window.location.replace("/");
             return;
           }
           await initAdminDashboard();
           return;
         }
         syncTierFromClerk(user);
-        if (document.getElementById('screen-auth')?.classList.contains('active')) {
+        if (
+          document.getElementById("screen-auth")?.classList.contains("active")
+        ) {
           state.userEmail = email;
           updateUserBadge();
-          await Promise.all([loadProfileFromServer(), loadAnalysesFromServer()]);
-          showScreen('screen-splash');
+          await Promise.all([
+            loadProfileFromServer(),
+            loadAnalysesFromServer(),
+          ]);
+          showScreen("screen-splash");
         }
       }
     });
   } catch (err) {
-    const msg = err?.errors?.[0]?.message || err?.message || JSON.stringify(err) || String(err);
-    console.error('Clerk init error:', msg, err);
+    const msg =
+      err?.errors?.[0]?.message ||
+      err?.message ||
+      JSON.stringify(err) ||
+      String(err);
+    console.error("Clerk init error:", msg, err);
     // Do NOT bypass auth on Clerk load failure — show auth screen so the user can retry
-    showScreen('screen-auth');
+    showScreen("screen-auth");
   }
 }
 
-document.getElementById('sign-out-btn')?.addEventListener('click', async () => {
+document.getElementById("sign-out-btn")?.addEventListener("click", async () => {
   if (clerkInstance) {
     await clerkInstance.signOut();
     state.analyses = [];
     state.profileLoaded = false;
-    state.goal = null; state.handicap = null; state.years = null; state.coach = null;
+    state.goal = null;
+    state.handicap = null;
+    state.years = null;
+    state.coach = null;
     window._swingClinicTier = null;
     resetAuthForm();
-    showScreen('screen-auth');
+    showScreen("screen-auth");
   }
 });
 
@@ -936,107 +1139,154 @@ function authError(elId, msg) {
   const el = document.getElementById(elId);
   if (!el) return;
   el.textContent = msg;
-  el.classList.remove('hidden');
+  el.classList.remove("hidden");
 }
 function authErrorClear(elId) {
   const el = document.getElementById(elId);
-  if (el) el.classList.add('hidden');
+  if (el) el.classList.add("hidden");
 }
 function setAuthLoading(btnId, loading) {
   const btn = document.getElementById(btnId);
   if (!btn) return;
   btn.disabled = loading;
-  btn.textContent = loading ? 'Please wait…' : (btnId === 'auth-email-btn' ? 'Continue' : 'Verify');
+  btn.textContent = loading
+    ? "Please wait…"
+    : btnId === "auth-email-btn"
+      ? "Continue"
+      : "Verify";
 }
 function showAuthStep(step) {
-  document.getElementById('auth-step-email')?.classList.toggle('hidden', step !== 'email');
-  document.getElementById('auth-step-code')?.classList.toggle('hidden', step !== 'code');
+  document
+    .getElementById("auth-step-email")
+    ?.classList.toggle("hidden", step !== "email");
+  document
+    .getElementById("auth-step-code")
+    ?.classList.toggle("hidden", step !== "code");
 }
 function resetAuthForm() {
   pendingSignIn = null;
   pendingSignUp = null;
-  if (document.getElementById('auth-email')) document.getElementById('auth-email').value = '';
-  if (document.getElementById('auth-code')) document.getElementById('auth-code').value = '';
-  authErrorClear('auth-email-error');
-  authErrorClear('auth-code-error');
-  showAuthStep('email');
+  if (document.getElementById("auth-email"))
+    document.getElementById("auth-email").value = "";
+  if (document.getElementById("auth-code"))
+    document.getElementById("auth-code").value = "";
+  authErrorClear("auth-email-error");
+  authErrorClear("auth-code-error");
+  showAuthStep("email");
 }
 
-document.getElementById('auth-email-btn')?.addEventListener('click', async () => {
-  if (!clerkInstance) return;
-  const email = document.getElementById('auth-email')?.value?.trim();
-  if (!email) return authError('auth-email-error', 'Please enter your email address.');
-  authErrorClear('auth-email-error');
-  setAuthLoading('auth-email-btn', true);
+document
+  .getElementById("auth-email-btn")
+  ?.addEventListener("click", async () => {
+    if (!clerkInstance) return;
+    const email = document.getElementById("auth-email")?.value?.trim();
+    if (!email)
+      return authError("auth-email-error", "Please enter your email address.");
+    authErrorClear("auth-email-error");
+    setAuthLoading("auth-email-btn", true);
 
-  try {
-    // Try sign-in first (existing user)
-    const si = await clerkInstance.client.signIn.create({ identifier: email });
-    pendingSignIn = si;
-    const factor = si.supportedFirstFactors?.find(f => f.strategy === 'email_code');
-    if (factor) await si.prepareFirstFactor({ strategy: 'email_code', emailAddressId: factor.emailAddressId });
-    document.getElementById('auth-step-email-preview').textContent = email;
-    showAuthStep('code');
-  } catch (err) {
-    const errCode = err?.errors?.[0]?.code;
-    if (errCode === 'form_identifier_not_found' || errCode === 'form_param_format_invalid') {
-      // New user → sign up
-      try {
-        const su = await clerkInstance.client.signUp.create({ emailAddress: email });
-        await su.prepareEmailAddressVerification({ strategy: 'email_code' });
-        pendingSignUp = su;
-        document.getElementById('auth-step-email-preview').textContent = email;
-        showAuthStep('code');
-      } catch (suErr) {
-        authError('auth-email-error', suErr?.errors?.[0]?.longMessage || suErr?.message || 'Could not create account.');
+    try {
+      // Try sign-in first (existing user)
+      const si = await clerkInstance.client.signIn.create({
+        identifier: email,
+      });
+      pendingSignIn = si;
+      const factor = si.supportedFirstFactors?.find(
+        (f) => f.strategy === "email_code",
+      );
+      if (factor)
+        await si.prepareFirstFactor({
+          strategy: "email_code",
+          emailAddressId: factor.emailAddressId,
+        });
+      document.getElementById("auth-step-email-preview").textContent = email;
+      showAuthStep("code");
+    } catch (err) {
+      const errCode = err?.errors?.[0]?.code;
+      if (
+        errCode === "form_identifier_not_found" ||
+        errCode === "form_param_format_invalid"
+      ) {
+        // New user → sign up
+        try {
+          const su = await clerkInstance.client.signUp.create({
+            emailAddress: email,
+          });
+          await su.prepareEmailAddressVerification({ strategy: "email_code" });
+          pendingSignUp = su;
+          document.getElementById("auth-step-email-preview").textContent =
+            email;
+          showAuthStep("code");
+        } catch (suErr) {
+          authError(
+            "auth-email-error",
+            suErr?.errors?.[0]?.longMessage ||
+              suErr?.message ||
+              "Could not create account.",
+          );
+        }
+      } else {
+        authError(
+          "auth-email-error",
+          err?.errors?.[0]?.longMessage ||
+            err?.message ||
+            "Something went wrong.",
+        );
       }
-    } else {
-      authError('auth-email-error', err?.errors?.[0]?.longMessage || err?.message || 'Something went wrong.');
+    } finally {
+      setAuthLoading("auth-email-btn", false);
     }
-  } finally {
-    setAuthLoading('auth-email-btn', false);
-  }
-});
+  });
 
-document.getElementById('auth-code-btn')?.addEventListener('click', async () => {
-  if (!clerkInstance) return;
-  const code = document.getElementById('auth-code')?.value?.trim();
-  if (!code || code.length < 6) return authError('auth-code-error', 'Enter the 6-digit code.');
-  authErrorClear('auth-code-error');
-  setAuthLoading('auth-code-btn', true);
-  try {
-    let result;
-    if (pendingSignUp) {
-      result = await pendingSignUp.attemptEmailAddressVerification({ code });
-      await clerkInstance.setActive({ session: result.createdSessionId });
-    } else if (pendingSignIn) {
-      result = await pendingSignIn.attemptFirstFactor({ strategy: 'email_code', code });
-      await clerkInstance.setActive({ session: result.createdSessionId });
-    } else {
-      return;
+document
+  .getElementById("auth-code-btn")
+  ?.addEventListener("click", async () => {
+    if (!clerkInstance) return;
+    const code = document.getElementById("auth-code")?.value?.trim();
+    if (!code || code.length < 6)
+      return authError("auth-code-error", "Enter the 6-digit code.");
+    authErrorClear("auth-code-error");
+    setAuthLoading("auth-code-btn", true);
+    try {
+      let result;
+      if (pendingSignUp) {
+        result = await pendingSignUp.attemptEmailAddressVerification({ code });
+        await clerkInstance.setActive({ session: result.createdSessionId });
+      } else if (pendingSignIn) {
+        result = await pendingSignIn.attemptFirstFactor({
+          strategy: "email_code",
+          code,
+        });
+        await clerkInstance.setActive({ session: result.createdSessionId });
+      } else {
+        return;
+      }
+      // setActive() resolved — navigate directly, don't rely on listener timing
+      const user = clerkInstance.user;
+      syncTierFromClerk(user);
+      state.userEmail = user?.primaryEmailAddress?.emailAddress;
+      updateUserBadge();
+      resetAuthForm();
+      await Promise.all([loadProfileFromServer(), loadAnalysesFromServer()]);
+      showScreen("screen-splash");
+    } catch (err) {
+      authError(
+        "auth-code-error",
+        err?.errors?.[0]?.longMessage ||
+          err?.message ||
+          "Invalid code. Try again.",
+      );
+    } finally {
+      setAuthLoading("auth-code-btn", false);
     }
-    // setActive() resolved — navigate directly, don't rely on listener timing
-    const user = clerkInstance.user;
-    syncTierFromClerk(user);
-    state.userEmail = user?.primaryEmailAddress?.emailAddress;
-    updateUserBadge();
-    resetAuthForm();
-    await Promise.all([loadProfileFromServer(), loadAnalysesFromServer()]);
-    showScreen('screen-splash');
-  } catch (err) {
-    authError('auth-code-error', err?.errors?.[0]?.longMessage || err?.message || 'Invalid code. Try again.');
-  } finally {
-    setAuthLoading('auth-code-btn', false);
-  }
-});
+  });
 
-document.getElementById('auth-back-btn')?.addEventListener('click', () => {
+document.getElementById("auth-back-btn")?.addEventListener("click", () => {
   pendingSignIn = null;
   pendingSignUp = null;
-  authErrorClear('auth-code-error');
-  showAuthStep('email');
+  authErrorClear("auth-code-error");
+  showAuthStep("email");
 });
-
 
 initClerk();
 
@@ -1044,8 +1294,11 @@ initClerk();
 // Attaches the Clerk session JWT so the API server can identify the user.
 async function authFetch(url, options = {}) {
   const token = await clerkInstance?.session?.getToken();
-  const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const headers = {
+    "Content-Type": "application/json",
+    ...(options.headers || {}),
+  };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
   return fetch(url, { ...options, headers });
 }
 
@@ -1054,53 +1307,73 @@ async function authFetch(url, options = {}) {
 
 async function loadProfileFromServer() {
   try {
-    const res = await authFetch('/api/profile');
+    const res = await authFetch("/api/profile");
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const { profile } = await res.json();
-    if (!profile) { state.profileLoaded = false; return; }
-    state.goal        = profile.goal        || null;
-    state.handicap    = profile.averageScore || null;
-    state.years       = profile.years        || null;
-    state.coach       = profile.coachStyle   || null;
-    state.profileLoaded = !!(state.goal && state.handicap && state.years && state.coach);
+    if (!profile) {
+      state.profileLoaded = false;
+      return;
+    }
+    state.goal = profile.goal || null;
+    state.handicap = profile.averageScore || null;
+    state.years = profile.years || null;
+    state.coach = profile.coachStyle || null;
+    state.profileLoaded = !!(
+      state.goal &&
+      state.handicap &&
+      state.years &&
+      state.coach
+    );
     if (state.profileLoaded) applyProfileToUI();
-    console.log(`[profile] Loaded from server (complete=${state.profileLoaded}):`, profile);
+    console.log(
+      `[profile] Loaded from server (complete=${state.profileLoaded}):`,
+      profile,
+    );
   } catch (err) {
-    console.error('[profile] Failed to load from server:', err);
+    console.error("[profile] Failed to load from server:", err);
     state.profileLoaded = false;
   }
 }
 
 function saveProfileToServer() {
-  authFetch('/api/profile', {
-    method: 'PUT',
+  authFetch("/api/profile", {
+    method: "PUT",
     body: JSON.stringify({
-      goal:         state.goal        || '',
-      averageScore: state.handicap    || '',
-      years:        state.years       || '',
-      coachStyle:   state.coach       || '',
+      goal: state.goal || "",
+      averageScore: state.handicap || "",
+      years: state.years || "",
+      coachStyle: state.coach || "",
     }),
-  }).then(async r => {
-    if (!r.ok) console.error('[profile] Server rejected save:', await r.text().catch(() => 'unknown'));
-    else { state.profileLoaded = true; console.log('[profile] Saved to server'); }
-  }).catch(err => console.error('[profile] Save error:', err));
+  })
+    .then(async (r) => {
+      if (!r.ok)
+        console.error(
+          "[profile] Server rejected save:",
+          await r.text().catch(() => "unknown"),
+        );
+      else {
+        state.profileLoaded = true;
+        console.log("[profile] Saved to server");
+      }
+    })
+    .catch((err) => console.error("[profile] Save error:", err));
 }
 
 function applyProfileToUI() {
   // Pre-select goal card
   if (state.goal) {
-    goalGrid.querySelectorAll('.goal-card').forEach(b => {
-      b.classList.toggle('selected', b.dataset.goal === state.goal);
+    goalGrid.querySelectorAll(".goal-card").forEach((b) => {
+      b.classList.toggle("selected", b.dataset.goal === state.goal);
     });
     goalNext.disabled = false;
   }
   // Pre-set dropdown selects
   if (state.handicap) handicapEl.value = state.handicap;
-  if (state.years)    yearsEl.value    = state.years;
+  if (state.years) yearsEl.value = state.years;
   // Pre-select coach card
   if (state.coach) {
-    coachGrid.querySelectorAll('.coach-card').forEach(b => {
-      b.classList.toggle('selected', b.dataset.coach === state.coach);
+    coachGrid.querySelectorAll(".coach-card").forEach((b) => {
+      b.classList.toggle("selected", b.dataset.coach === state.coach);
     });
   }
   checkProfileComplete();
@@ -1112,14 +1385,16 @@ function applyProfileToUI() {
 
 async function loadAnalysesFromServer() {
   try {
-    const res = await authFetch('/api/analyses');
+    const res = await authFetch("/api/analyses");
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const { analyses } = await res.json();
     // Server returns newest-first (DESC); reverse so chart is oldest→newest (left→right)
     state.analyses = (analyses || []).slice().reverse();
-    console.log(`[history] Loaded ${state.analyses.length} analyses from server`);
+    console.log(
+      `[history] Loaded ${state.analyses.length} analyses from server`,
+    );
   } catch (err) {
-    console.error('[history] Failed to load analyses from server:', err);
+    console.error("[history] Failed to load analyses from server:", err);
     state.analyses = [];
   }
 }
@@ -1128,43 +1403,48 @@ function saveAnalysis(data) {
   const entry = {
     timestamp: new Date().toISOString(),
     overallScore: data.overallScore,
-    variables:    { ...data.variables },
+    variables: { ...data.variables },
     biggestKiller: data.biggestKiller,
     biggestKillerDesc: data.biggestKillerDesc,
     potentialGain: data.potentialGain,
-    drills:        data.drills,
-    coachMessage:  data.coachMessage,
+    drills: data.drills,
+    coachMessage: data.coachMessage,
     handicapEstimate: data.handicapEstimate,
-    goal:          state.goal,
-    coachStyle:    state.coach,
+    goal: state.goal,
+    coachStyle: state.coach,
   };
   state.analyses.push(entry);
 
   // Persist to server asynchronously (fire-and-forget, UI is already updated)
-  authFetch('/api/analyses', {
-    method: 'POST',
+  authFetch("/api/analyses", {
+    method: "POST",
     body: JSON.stringify({
-      overallScore:      entry.overallScore,
-      variables:         entry.variables,
-      biggestKiller:     entry.biggestKiller,
+      overallScore: entry.overallScore,
+      variables: entry.variables,
+      biggestKiller: entry.biggestKiller,
       biggestKillerDesc: entry.biggestKillerDesc,
-      potentialGain:     entry.potentialGain,
-      drills:            entry.drills,
-      coachMessage:      entry.coachMessage,
-      handicapEstimate:  entry.handicapEstimate,
-      goal:              entry.goal,
-      coachStyle:        entry.coachStyle,
+      potentialGain: entry.potentialGain,
+      drills: entry.drills,
+      coachMessage: entry.coachMessage,
+      handicapEstimate: entry.handicapEstimate,
+      goal: entry.goal,
+      coachStyle: entry.coachStyle,
     }),
-  }).then(async r => {
-    if (!r.ok) {
-      console.error('[history] Server rejected save:', await r.text().catch(() => 'unknown'));
-    } else {
-      const { id, timestamp } = await r.json();
-      entry.id = id;
-      entry.timestamp = timestamp;
-      console.log(`[history] Saved to DB (id=${id})`);
-    }
-  }).catch(err => console.error('[history] Failed to save to server:', err));
+  })
+    .then(async (r) => {
+      if (!r.ok) {
+        console.error(
+          "[history] Server rejected save:",
+          await r.text().catch(() => "unknown"),
+        );
+      } else {
+        const { id, timestamp } = await r.json();
+        entry.id = id;
+        entry.timestamp = timestamp;
+        console.log(`[history] Saved to DB (id=${id})`);
+      }
+    })
+    .catch((err) => console.error("[history] Failed to save to server:", err));
 }
 
 function getAnalyses() {
@@ -1172,41 +1452,61 @@ function getAnalyses() {
 }
 
 function filterByPeriod(analyses, period) {
-  if (period === 'all') return analyses;
+  if (period === "all") return analyses;
   const now = Date.now();
-  const ms = period === 'week' ? 7 * 86400000 : 30 * 86400000;
-  return analyses.filter(a => now - new Date(a.timestamp).getTime() <= ms);
+  const ms = period === "week" ? 7 * 86400000 : 30 * 86400000;
+  return analyses.filter((a) => now - new Date(a.timestamp).getTime() <= ms);
 }
 
 // ── SVG Charts ────────────────────────────────────
 function buildLineChartSVG(analyses) {
-  const W = 300, H = 140;
-  const pL = 28, pR = 12, pT = 18, pB = 24;
-  const pw = W - pL - pR, ph = H - pT - pB;
+  const W = 300,
+    H = 140;
+  const pL = 28,
+    pR = 12,
+    pT = 18,
+    pB = 24;
+  const pw = W - pL - pR,
+    ph = H - pT - pB;
   const n = analyses.length;
-  const toX = i => pL + (n === 1 ? pw / 2 : i * pw / (n - 1));
-  const toY = s => pT + ph - (s / 100) * ph;
-  const pts = analyses.map((a, i) => ({ x: toX(i), y: toY(a.overallScore), s: a.overallScore, t: a.timestamp }));
+  const toX = (i) => pL + (n === 1 ? pw / 2 : (i * pw) / (n - 1));
+  const toY = (s) => pT + ph - (s / 100) * ph;
+  const pts = analyses.map((a, i) => ({
+    x: toX(i),
+    y: toY(a.overallScore),
+    s: a.overallScore,
+    t: a.timestamp,
+  }));
 
-  const grids = [25, 50, 75].map(v => {
-    const y = toY(v);
-    return `<line x1="${pL}" y1="${y.toFixed(1)}" x2="${W - pR}" y2="${y.toFixed(1)}" stroke="#222" stroke-width="1" stroke-dasharray="3,3"/>
+  const grids = [25, 50, 75]
+    .map((v) => {
+      const y = toY(v);
+      return `<line x1="${pL}" y1="${y.toFixed(1)}" x2="${W - pR}" y2="${y.toFixed(1)}" stroke="#222" stroke-width="1" stroke-dasharray="3,3"/>
             <text x="${pL - 4}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" font-size="9" fill="#444">${v}</text>`;
-  }).join('');
+    })
+    .join("");
 
-  const pathD = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
-  const fillD = `${pathD} L${pts[n-1].x.toFixed(1)},${(pT+ph).toFixed(1)} L${pts[0].x.toFixed(1)},${(pT+ph).toFixed(1)} Z`;
+  const pathD = pts
+    .map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`)
+    .join(" ");
+  const fillD = `${pathD} L${pts[n - 1].x.toFixed(1)},${(pT + ph).toFixed(1)} L${pts[0].x.toFixed(1)},${(pT + ph).toFixed(1)} Z`;
 
-  const dots = pts.map(p =>
-    `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4" fill="#00C46A" stroke="#0a0a0a" stroke-width="2"/>
-     <text x="${p.x.toFixed(1)}" y="${(p.y - 8).toFixed(1)}" text-anchor="middle" font-size="8" fill="#00C46A" font-weight="bold">${p.s}</text>`
-  ).join('');
+  const dots = pts
+    .map(
+      (p) =>
+        `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4" fill="#00C46A" stroke="#0a0a0a" stroke-width="2"/>
+     <text x="${p.x.toFixed(1)}" y="${(p.y - 8).toFixed(1)}" text-anchor="middle" font-size="8" fill="#00C46A" font-weight="bold">${p.s}</text>`,
+    )
+    .join("");
 
   const step = Math.max(1, Math.ceil(n / 5));
-  const dateLabels = pts.filter((_, i) => i % step === 0 || i === n - 1).map(p => {
-    const d = new Date(p.t);
-    return `<text x="${p.x.toFixed(1)}" y="${H - 4}" text-anchor="middle" font-size="8" fill="#555">${d.getDate()}/${d.getMonth() + 1}</text>`;
-  }).join('');
+  const dateLabels = pts
+    .filter((_, i) => i % step === 0 || i === n - 1)
+    .map((p) => {
+      const d = new Date(p.t);
+      return `<text x="${p.x.toFixed(1)}" y="${H - 4}" text-anchor="middle" font-size="8" fill="#555">${d.getDate()}/${d.getMonth() + 1}</text>`;
+    })
+    .join("");
 
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" xmlns="http://www.w3.org/2000/svg">
     ${grids}
@@ -1218,28 +1518,33 @@ function buildLineChartSVG(analyses) {
 
 function buildCompareChartSVG(prev, curr) {
   const vars = Object.keys(curr.variables);
-  const rowH = 38, pL = 104, pR = 36, W = 320;
+  const rowH = 38,
+    pL = 104,
+    pR = 36,
+    W = 320;
   const H = vars.length * rowH + 24;
   const maxW = W - pL - pR;
 
-  const rows = vars.map((v, i) => {
-    const pScore = prev?.variables?.[v] ?? 0;
-    const cScore = curr.variables[v] ?? 0;
-    const pW = (pScore / 100) * maxW;
-    const cW = (cScore / 100) * maxW;
-    const delta = cScore - pScore;
-    const dCol = delta > 0 ? '#00C46A' : delta < 0 ? '#ef4444' : '#555';
-    const dStr = delta > 0 ? `+${delta}` : `${delta}`;
-    const y = 24 + i * rowH;
-    const name = v.length > 14 ? v.slice(0, 13) + '…' : v;
-    return `
+  const rows = vars
+    .map((v, i) => {
+      const pScore = prev?.variables?.[v] ?? 0;
+      const cScore = curr.variables[v] ?? 0;
+      const pW = (pScore / 100) * maxW;
+      const cW = (cScore / 100) * maxW;
+      const delta = cScore - pScore;
+      const dCol = delta > 0 ? "#00C46A" : delta < 0 ? "#ef4444" : "#555";
+      const dStr = delta > 0 ? `+${delta}` : `${delta}`;
+      const y = 24 + i * rowH;
+      const name = v.length > 14 ? v.slice(0, 13) + "…" : v;
+      return `
       <text x="${pL - 6}" y="${y + 11}" text-anchor="end" font-size="9" fill="#777">${name}</text>
       <rect x="${pL}" y="${y}" width="${pW.toFixed(1)}" height="12" rx="3" fill="#2a2a2a"/>
       <text x="${Math.min(pL + pW + 4, W - pR - 2).toFixed(1)}" y="${y + 10}" font-size="8" fill="#555">${pScore}</text>
       <rect x="${pL}" y="${y + 15}" width="${cW.toFixed(1)}" height="12" rx="3" fill="#00C46A"/>
       <text x="${Math.min(pL + cW + 4, W - pR - 2).toFixed(1)}" y="${(y + 25).toFixed(1)}" font-size="8" fill="#00C46A" font-weight="bold">${cScore}</text>
-      ${prev ? `<text x="${W - 2}" y="${y + 14}" text-anchor="end" font-size="10" fill="${dCol}" font-weight="bold">${dStr}</text>` : ''}`;
-  }).join('');
+      ${prev ? `<text x="${W - 2}" y="${y + 14}" text-anchor="end" font-size="10" fill="${dCol}" font-weight="bold">${dStr}</text>` : ""}`;
+    })
+    .join("");
 
   const legend = prev
     ? `<rect x="${pL}" y="6" width="10" height="6" rx="2" fill="#2a2a2a"/>
@@ -1254,10 +1559,20 @@ function buildCompareChartSVG(prev, curr) {
 // ── Render Progress ───────────────────────────────
 function renderProgress() {
   const analyses = getAnalyses();
-  const container = document.getElementById('progress-content');
+  const container = document.getElementById("progress-content");
+  const streak = getStreak();
 
   if (analyses.length === 0) {
     container.innerHTML = `
+      <div class="streak-card">
+        <span class="streak-flame">🔥</span>
+        <div class="streak-info">
+          <span class="streak-count">0</span>
+          <span class="streak-label">Day streak</span>
+          <span class="streak-sub">Upload your first swing to start!</span>
+        </div>
+      </div>
+      ${renderAchievements()}
       <div class="progress-empty">
         <div class="progress-empty-icon">📊</div>
         <p class="progress-empty-text">Upload your first swing to start tracking your progress over time.</p>
@@ -1265,21 +1580,63 @@ function renderProgress() {
     return;
   }
 
-  const fmt = ts => {
+  const fmt = (ts) => {
     const d = new Date(ts);
-    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    return d.toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
   };
 
-  const listHTML = analyses.slice().reverse().map(a => `
+  const streakSub =
+    streak >= 7
+      ? "You're on fire! Keep it going."
+      : streak >= 3
+        ? "Great consistency!"
+        : streak === 1
+          ? "Start a streak — come back tomorrow!"
+          : "Analyse today to start a streak!";
+
+  // Drills completed this week
+  const weekAgo = Date.now() - 7 * 86400000;
+  const recentAnalyses = analyses.filter(
+    (a) => new Date(a.timestamp).getTime() >= weekAgo,
+  );
+  let drillsDoneCount = 0;
+  recentAnalyses.forEach((a) => {
+    const dayKey = a.timestamp.slice(0, 10);
+    (a.drills || []).forEach((_, i) => {
+      if (isDrillDone(dayKey, i)) drillsDoneCount++;
+    });
+  });
+
+  const listHTML = analyses
+    .slice()
+    .reverse()
+    .map(
+      (a) => `
     <div class="past-analysis-item">
       <div class="past-analysis-left">
         <span class="past-analysis-date">${fmt(a.timestamp)}</span>
         <span class="past-analysis-killer">⚡ ${a.biggestKiller}</span>
       </div>
       <span class="past-analysis-score">${a.overallScore}</span>
-    </div>`).join('');
+    </div>`,
+    )
+    .join("");
 
   container.innerHTML = `
+    <div class="streak-card">
+      <span class="streak-flame">🔥</span>
+      <div class="streak-info">
+        <span class="streak-count">${streak}</span>
+        <span class="streak-label">Day streak</span>
+        <span class="streak-sub">${streakSub}</span>
+      </div>
+    </div>
+    ${drillsDoneCount > 0 ? `<div class="section-heading" style="margin-bottom:8px">DRILLS COMPLETED THIS WEEK: <span style="color:var(--green)">${drillsDoneCount}</span></div>` : ""}
+    ${renderAchievements()}
     <div class="chart-card">
       <div class="chart-title">Swing score over time</div>
       ${buildLineChartSVG(analyses)}
@@ -1290,7 +1647,7 @@ function renderProgress() {
 
 // ── Render Compare ────────────────────────────────
 function renderCompare(period) {
-  const container = document.getElementById('compare-content');
+  const container = document.getElementById("compare-content");
 
   if (!hasProAccess()) {
     container.innerHTML = `
@@ -1306,9 +1663,10 @@ function renderCompare(period) {
   const filtered = filterByPeriod(all, period);
 
   if (filtered.length < 2) {
-    const msg = all.length < 2
-      ? 'Complete 2 analyses to unlock comparisons.'
-      : 'Not enough sessions in this period. Try a wider time range.';
+    const msg =
+      all.length < 2
+        ? "Complete 2 analyses to unlock comparisons."
+        : "Not enough sessions in this period. Try a wider time range.";
     container.innerHTML = `
       <div class="compare-locked">
         <div class="compare-locked-icon">🔒</div>
@@ -1322,22 +1680,27 @@ function renderCompare(period) {
   const vars = Object.keys(curr.variables);
 
   // Biggest improvement
-  let bestVar = '', bestDelta = -Infinity;
-  vars.forEach(v => {
+  let bestVar = "",
+    bestDelta = -Infinity;
+  vars.forEach((v) => {
     const delta = (curr.variables[v] ?? 0) - (prev.variables[v] ?? 0);
-    if (delta > bestDelta) { bestDelta = delta; bestVar = v; }
+    if (delta > bestDelta) {
+      bestDelta = delta;
+      bestVar = v;
+    }
   });
 
   // This-week count
-  const weekCount = filterByPeriod(all, 'week').length;
+  const weekCount = filterByPeriod(all, "week").length;
 
-  const improvementHTML = bestDelta > 0
-    ? `<div class="compare-best-improvement">
+  const improvementHTML =
+    bestDelta > 0
+      ? `<div class="compare-best-improvement">
         <span class="compare-best-label">🏆 Biggest improvement</span>
         <span class="compare-best-value">${bestVar}</span>
         <span class="compare-best-sub">+${bestDelta} points since last session</span>
        </div>`
-    : '';
+      : "";
 
   container.innerHTML = `
     <div class="compare-summary">
@@ -1351,7 +1714,7 @@ function renderCompare(period) {
       </div>
       <div class="compare-stat">
         <span class="compare-stat-label">Score Δ</span>
-        <span class="compare-stat-value" style="color:${curr.overallScore >= prev.overallScore ? 'var(--green)' : '#ef4444'}">${curr.overallScore >= prev.overallScore ? '+' : ''}${curr.overallScore - prev.overallScore}</span>
+        <span class="compare-stat-value" style="color:${curr.overallScore >= prev.overallScore ? "var(--green)" : "#ef4444"}">${curr.overallScore >= prev.overallScore ? "+" : ""}${curr.overallScore - prev.overallScore}</span>
       </div>
     </div>
     ${improvementHTML}
@@ -1362,26 +1725,30 @@ function renderCompare(period) {
 }
 
 // ── Bottom Nav ────────────────────────────────────
-document.querySelectorAll('.nav-tab').forEach(tab => {
-  tab.addEventListener('click', () => {
+document.querySelectorAll(".nav-tab").forEach((tab) => {
+  tab.addEventListener("click", () => {
     const t = tab.dataset.tab;
-    if (t === 'home') {
-      showScreen('screen-results');
-    } else if (t === 'progress') {
-      showScreen('screen-progress');
+    if (t === "home") {
+      showScreen("screen-results");
+    } else if (t === "progress") {
+      showScreen("screen-progress");
       renderProgress();
-    } else if (t === 'compare') {
-      showScreen('screen-compare');
-      renderCompare(document.querySelector('.filter-btn.active')?.dataset.filter || 'all');
+    } else if (t === "compare") {
+      showScreen("screen-compare");
+      renderCompare(
+        document.querySelector(".filter-btn.active")?.dataset.filter || "all",
+      );
     }
   });
 });
 
 // Compare filter buttons
-document.querySelectorAll('.filter-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
+document.querySelectorAll(".filter-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document
+      .querySelectorAll(".filter-btn")
+      .forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
     renderCompare(btn.dataset.filter);
   });
 });
@@ -1389,63 +1756,228 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
 // ── Profile Modal ──────────────────────────────────
 function openProfileModal() {
   const tier = getTier();
-  const overlay = document.getElementById('profile-overlay');
-  const emailEl = document.getElementById('profile-sheet-email');
-  const planBadge = document.getElementById('profile-sheet-plan-badge');
-  const planLabel = document.getElementById('profile-sheet-plan-label');
-  const manageLink = document.getElementById('profile-manage-link');
+  const overlay = document.getElementById("profile-overlay");
+  const emailEl = document.getElementById("profile-sheet-email");
+  const planBadge = document.getElementById("profile-sheet-plan-badge");
+  const planLabel = document.getElementById("profile-sheet-plan-label");
+  const manageLink = document.getElementById("profile-manage-link");
 
-  if (emailEl) emailEl.textContent = state.userEmail || '—';
+  if (emailEl) emailEl.textContent = state.userEmail || "—";
   if (planBadge) {
-    planBadge.textContent = TIER_LABELS[tier] || 'FREE';
-    planBadge.className = 'plan-badge plan-badge--' + tier;
+    planBadge.textContent = TIER_LABELS[tier] || "FREE";
+    planBadge.className = "plan-badge plan-badge--" + tier;
   }
-  if (planLabel) planLabel.textContent = TIER_DESC[tier] || 'Basic access';
+  if (planLabel) planLabel.textContent = TIER_DESC[tier] || "Basic access";
 
   if (manageLink) {
-    if (tier === 'pro') {
-      manageLink.href = 'https://whop.com/hub/';
-      manageLink.textContent = 'Manage Pro subscription →';
-    } else if (tier === 'report') {
+    if (tier === "pro") {
+      manageLink.href = "https://whop.com/hub/";
+      manageLink.textContent = "Manage Pro subscription →";
+    } else if (tier === "report") {
       manageLink.href = WHOP_PRO;
-      manageLink.textContent = 'Upgrade to Pro — £14.99/mo →';
+      manageLink.textContent = "Upgrade to Pro — £14.99/mo →";
     } else {
       manageLink.href = WHOP_REPORT;
-      manageLink.textContent = 'Unlock Report — £7.99 →';
+      manageLink.textContent = "Unlock Report — £7.99 →";
     }
   }
 
-  overlay?.classList.remove('hidden');
-  document.body.style.overflow = 'hidden';
+  overlay?.classList.remove("hidden");
+  document.body.style.overflow = "hidden";
 }
 
 function closeProfileModal() {
-  document.getElementById('profile-overlay')?.classList.add('hidden');
-  document.body.style.overflow = '';
+  document.getElementById("profile-overlay")?.classList.add("hidden");
+  document.body.style.overflow = "";
 }
 
-document.getElementById('profile-btn')?.addEventListener('click', openProfileModal);
+document
+  .getElementById("profile-btn")
+  ?.addEventListener("click", openProfileModal);
 
-document.getElementById('profile-overlay')?.addEventListener('click', e => {
+document.getElementById("profile-overlay")?.addEventListener("click", (e) => {
   if (e.target === e.currentTarget) closeProfileModal();
 });
 
-document.getElementById('profile-signout-btn')?.addEventListener('click', async () => {
-  closeProfileModal();
-  if (clerkInstance) {
-    await clerkInstance.signOut();
-    state.analyses = [];
-    window._swingClinicTier = null;
-    resetAuthForm();
-    showScreen('screen-auth');
+document
+  .getElementById("profile-signout-btn")
+  ?.addEventListener("click", async () => {
+    closeProfileModal();
+    if (clerkInstance) {
+      await clerkInstance.signOut();
+      state.analyses = [];
+      window._swingClinicTier = null;
+      resetAuthForm();
+      showScreen("screen-auth");
+    }
+  });
+
+// ── Share Score ───────────────────────────────────
+function shareScore(data) {
+  const text = `I got ${data.overallScore}/100 on my golf swing analysis!\nBiggest fault: ${data.biggestKiller}\nAnalyse your swing free at swing-clinic.replit.app`;
+  if (navigator.share) {
+    navigator
+      .share({
+        title: "Swing Clinic",
+        text,
+        url: "https://swing-clinic.replit.app",
+      })
+      .catch(() => {});
+  } else {
+    navigator.clipboard
+      .writeText(text)
+      .then(() => {
+        const toast = document.getElementById("share-toast");
+        if (!toast) return;
+        toast.classList.remove("hidden");
+        setTimeout(() => toast.classList.add("hidden"), 2500);
+      })
+      .catch(() => {});
   }
+}
+
+document.getElementById("share-score-btn")?.addEventListener("click", () => {
+  if (state.results) shareScore(state.results);
 });
 
+// ── Drill Completion Tracker ───────────────────────
+function getDrillKey(analysisTimestamp, drillIndex) {
+  return `sc_drill_${analysisTimestamp}_${drillIndex}`;
+}
+
+function isDrillDone(analysisTimestamp, drillIndex) {
+  return (
+    localStorage.getItem(getDrillKey(analysisTimestamp, drillIndex)) === "1"
+  );
+}
+
+function toggleDrill(analysisTimestamp, drillIndex, btn) {
+  const key = getDrillKey(analysisTimestamp, drillIndex);
+  const nowDone = localStorage.getItem(key) !== "1";
+  if (nowDone) {
+    localStorage.setItem(key, "1");
+  } else {
+    localStorage.removeItem(key);
+  }
+  btn.classList.toggle("done", nowDone);
+  btn.innerHTML = nowDone
+    ? '<span class="check-icon">✓</span> Completed'
+    : '<span class="check-icon">○</span> Mark as done';
+}
+
+// ── Streak Tracker ─────────────────────────────────
+function getStreak() {
+  const analyses = getAnalyses();
+  if (!analyses.length) return 0;
+  const days = [...new Set(analyses.map((a) => a.timestamp.slice(0, 10)))]
+    .sort()
+    .reverse();
+  let streak = 0;
+  const today = new Date();
+  for (let i = 0; i < days.length; i++) {
+    const expected = new Date(today);
+    expected.setDate(expected.getDate() - i);
+    if (days[i] === expected.toISOString().slice(0, 10)) {
+      streak++;
+    } else {
+      break;
+    }
+  }
+  return streak;
+}
+
+// ── Achievements ───────────────────────────────────
+const ACHIEVEMENTS = [
+  {
+    id: "first",
+    icon: "🏌️",
+    title: "First Swing",
+    desc: "Complete your first analysis",
+    check: (a) => a.length >= 1,
+  },
+  {
+    id: "five",
+    icon: "🔥",
+    title: "Five Sessions",
+    desc: "5 analyses completed",
+    check: (a) => a.length >= 5,
+  },
+  {
+    id: "ten",
+    icon: "⭐",
+    title: "Dedicated",
+    desc: "10 analyses completed",
+    check: (a) => a.length >= 10,
+  },
+  {
+    id: "score60",
+    icon: "📈",
+    title: "Breaking 60",
+    desc: "Score 60 or higher",
+    check: (a) => a.some((x) => x.overallScore >= 60),
+  },
+  {
+    id: "score70",
+    icon: "🎯",
+    title: "Solid Game",
+    desc: "Score 70 or higher",
+    check: (a) => a.some((x) => x.overallScore >= 70),
+  },
+  {
+    id: "score80",
+    icon: "🏆",
+    title: "Elite Swing",
+    desc: "Score 80 or higher",
+    check: (a) => a.some((x) => x.overallScore >= 80),
+  },
+  {
+    id: "streak3",
+    icon: "🔥",
+    title: "On a Roll",
+    desc: "3-day practice streak",
+    check: (a, s) => s >= 3,
+  },
+  {
+    id: "streak7",
+    icon: "💎",
+    title: "Week Warrior",
+    desc: "7-day practice streak",
+    check: (a, s) => s >= 7,
+  },
+  {
+    id: "improved",
+    icon: "📊",
+    title: "Improving",
+    desc: "Score higher than first session",
+    check: (a) =>
+      a.length >= 2 && a[a.length - 1].overallScore > a[0].overallScore,
+  },
+];
+
+function renderAchievements() {
+  const analyses = getAnalyses();
+  const streak = getStreak();
+  return `
+    <div class="achievements-section">
+      <div class="section-heading" style="margin-bottom:10px">ACHIEVEMENTS</div>
+      <div class="achievements-grid">
+        ${ACHIEVEMENTS.map((ach) => {
+          const unlocked = ach.check(analyses, streak);
+          return `<div class="achievement-card ${unlocked ? "unlocked" : ""}">
+            <span class="achievement-icon">${ach.icon}</span>
+            <span class="achievement-title">${ach.title}</span>
+            <span class="achievement-desc">${ach.desc}</span>
+          </div>`;
+        }).join("")}
+      </div>
+    </div>`;
+}
+
 // ── PDF Download ───────────────────────────────────
-document.getElementById('pdf-download-btn')?.addEventListener('click', () => {
-  const btn = document.getElementById('pdf-download-btn');
+document.getElementById("pdf-download-btn")?.addEventListener("click", () => {
+  const btn = document.getElementById("pdf-download-btn");
   if (!btn) return;
-  btn.textContent = 'Preparing your report…';
+  btn.textContent = "Preparing your report…";
   btn.disabled = true;
   setTimeout(() => {
     window.print();

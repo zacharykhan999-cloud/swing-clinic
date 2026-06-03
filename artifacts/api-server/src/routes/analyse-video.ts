@@ -20,7 +20,11 @@ const SYSTEM_PROMPT =
   "see in the video. You do not guess. You do not give average scores. You analyse what is actually there.";
 
 // ── Gemini Files API — resumable upload ───────────────────────────────────────
-async function uploadToGemini(buffer: Buffer, mimeType: string, apiKey: string): Promise<string> {
+async function uploadToGemini(
+  buffer: Buffer,
+  mimeType: string,
+  apiKey: string,
+): Promise<string> {
   // Step 1: Initiate resumable upload session
   const initRes = await fetch(
     `https://generativelanguage.googleapis.com/upload/v1beta/files?key=${apiKey}`,
@@ -34,12 +38,14 @@ async function uploadToGemini(buffer: Buffer, mimeType: string, apiKey: string):
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ file: { display_name: "golf-swing" } }),
-    }
+    },
   );
 
   if (!initRes.ok) {
     const body = await initRes.text();
-    throw new Error(`Gemini upload init failed (${initRes.status}): ${body.slice(0, 300)}`);
+    throw new Error(
+      `Gemini upload init failed (${initRes.status}): ${body.slice(0, 300)}`,
+    );
   }
 
   const uploadUrl = initRes.headers.get("x-goog-upload-url");
@@ -59,25 +65,29 @@ async function uploadToGemini(buffer: Buffer, mimeType: string, apiKey: string):
 
   if (!uploadRes.ok) {
     const body = await uploadRes.text();
-    throw new Error(`Gemini file upload failed (${uploadRes.status}): ${body.slice(0, 300)}`);
+    throw new Error(
+      `Gemini file upload failed (${uploadRes.status}): ${body.slice(0, 300)}`,
+    );
   }
 
-  const fileData = await uploadRes.json() as {
+  const fileData = (await uploadRes.json()) as {
     file: { name: string; uri: string; state: string };
   };
 
   // Step 3: Poll until ACTIVE (max 90 s, 2 s interval)
   let file = fileData.file;
   for (let i = 0; i < 45 && file.state === "PROCESSING"; i++) {
-    await new Promise(r => setTimeout(r, 2000));
+    await new Promise((r) => setTimeout(r, 2000));
     const pollRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/${file.name}?key=${apiKey}`
+      `https://generativelanguage.googleapis.com/v1beta/${file.name}?key=${apiKey}`,
     );
-    file = await pollRes.json() as typeof file;
+    file = (await pollRes.json()) as typeof file;
   }
 
   if (file.state !== "ACTIVE") {
-    throw new Error(`Gemini file never became ACTIVE (final state: ${file.state})`);
+    throw new Error(
+      `Gemini file never became ACTIVE (final state: ${file.state})`,
+    );
   }
 
   return file.uri;
@@ -92,7 +102,24 @@ type Calibration = {
 };
 
 function buildCalibrationBlock(cal: Calibration): string {
-  return `━━━ CALIBRATION DATA (50% of scoring weight) ━━━
+  // Derive a calibration tier so hard limits can reference it explicitly
+  const sliceRarely =
+    cal.sliceFrequency === "rarely" || cal.sliceFrequency === "never";
+  const noBalance = cal.balanceLoss === "rarely" || cal.balanceLoss === "never";
+  const longIron =
+    cal.sevenIronDistance === "150+" || cal.sevenIronDistance === "170+";
+  const alwaysSlice =
+    cal.sliceFrequency === "always" || cal.sliceFrequency === "often";
+  const loseBalance =
+    cal.balanceLoss === "always" || cal.balanceLoss === "often";
+  const shortIron =
+    cal.sevenIronDistance === "under 100" ||
+    cal.sevenIronDistance === "100-130";
+
+  const isProProfile = sliceRarely && noBalance && longIron;
+  const isBeginProfile = alwaysSlice && loseBalance && shortIron;
+
+  return `━━━ CALIBRATION DATA ━━━
 The golfer answered these self-assessment questions before submitting their video:
 
 Slice frequency: ${cal.sliceFrequency ?? "Not provided"}
@@ -101,19 +128,28 @@ Balance loss at finish: ${cal.balanceLoss ?? "Not provided"}
 Fat shots (hitting ground before ball): ${cal.fatShots ?? "Not provided"}
 7 iron distance: ${cal.sevenIronDistance ?? "Not provided"}
 
-These answers carry 50% of the scoring weight. The video provides the other 50%.
-HARD SCORE LIMITS — apply these strictly:
-- Always slices + loses balance + hits under 100 yards with 7 iron → overallScore CANNOT exceed 45
-- Rarely slices + no balance loss + hits 150+ yards with 7 iron → overallScore must be at least 70
-- Sometimes slices + sometimes loses balance + 100–130 yards → mid-handicap range (score 45–65)
-Cross-reference these limits with what you observe in the video before finalising any score.`;
+HARD SCORE FLOOR/CEILING — enforce these before finalising any score:
+- Beginner profile (always/often slices + loses balance + under 130 yards): overallScore CANNOT exceed 45
+- Mid-handicap profile (sometimes slices + sometimes loses balance + 100–150 yards): overallScore 45–74
+- Low/scratch profile (rarely slices + rarely loses balance + 150+ yards): overallScore at minimum 75
+- Tour/professional profile (never/rarely slices + never/rarely loses balance + 170+ yards): overallScore at minimum 88
+${isProProfile ? "\n⚠️  ACTIVE LIMIT: This golfer's answers match a TOUR/PRO profile. overallScore MUST be 88 or higher if the video confirms professional mechanics. Do NOT score below 88 unless you observe a clear, disqualifying fault in the video." : ""}
+${isBeginProfile ? "\n⚠️  ACTIVE LIMIT: This golfer's answers match a BEGINNER profile. overallScore CANNOT exceed 45." : ""}
+
+Cross-reference these limits with what you observe in the video before finalising.`;
 }
 
 // ── Gemini 2.5 Pro — video swing analysis ─────────────────────────────────────
 async function analyseWithGemini(
   fileUri: string,
   mimeType: string,
-  params: { goal: string; averageScore: string; years: string; coach: string; calibration: Calibration },
+  params: {
+    goal: string;
+    averageScore: string;
+    years: string;
+    coach: string;
+    calibration: Calibration;
+  },
   apiKey: string,
 ): Promise<string> {
   const sessionSeed = `${Date.now()}-${Math.floor(Math.random() * 99999)}`;
@@ -147,15 +183,24 @@ HANDICAP BANDS:
 - High handicap (19–28): 38–54
 - Beginner: 20–37
 
-CALIBRATION CHECKLIST (answer from your phase notes):
-1. Full shoulder rotation visible? (+10)
-2. Club on plane at three-quarter backswing and top? (+10)
-3. Clear weight transfer to lead side at impact? (+10)
-4. Balanced, complete finish? (+10)
-5. Smooth, consistent tempo throughout? (+10)
-Yes to 4–5 → overallScore must exceed 80. Yes to all 5 on a clearly professional swing → 88–96.
+VISUAL CHECKLIST — answer YES or NO from your phase observations, then apply the mandatory score floor:
+1. Full shoulder rotation (≥80°) visible at top of backswing?
+2. Club on plane at three-quarter back AND at top?
+3. Clear weight transfer to lead side visible at impact?
+4. Balanced, complete finish with weight fully on lead foot?
+5. Smooth, consistent tempo with no lurching or rushing?
 
-Stated average score: ${params.averageScore || "unknown"}. The calibration data above already accounts for 50% of scoring weight — the video provides the other 50%.
+Score floors from checklist:
+- 5/5 YES → overallScore MUST be 88–96 (professional band)
+- 4/5 YES → overallScore MUST exceed 80
+- 3/5 YES → overallScore 65–80
+- 2/5 YES → overallScore 45–65
+- 0–1/5 YES → overallScore below 45
+
+These floors are MANDATORY. You may not score below the floor the checklist dictates.
+The calibration hard limits above also apply — use whichever floor is higher.
+
+For reference, the golfer stated their average score is: ${params.averageScore || "unknown"} (treat as supplementary context only, not a scoring input).
 
 UNIQUENESS RULE: Your 11 variable scores must precisely reflect this specific swing's strengths and weaknesses — no two swings ever share an identical variable profile.
 
@@ -205,23 +250,27 @@ Then output your scores wrapped exactly as shown — no JSON outside the tags:
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
-        contents: [{
-          parts: [
-            { file_data: { mime_type: mimeType, file_uri: fileUri } },
-            { text: prompt },
-          ],
-        }],
-        generationConfig: { maxOutputTokens: 4096, temperature: 0.7 },
+        contents: [
+          {
+            parts: [
+              { file_data: { mime_type: mimeType, file_uri: fileUri } },
+              { text: prompt },
+            ],
+          },
+        ],
+        generationConfig: { maxOutputTokens: 4096, temperature: 0.3 },
       }),
-    }
+    },
   );
 
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`Gemini generateContent failed (${res.status}): ${body.slice(0, 400)}`);
+    throw new Error(
+      `Gemini generateContent failed (${res.status}): ${body.slice(0, 400)}`,
+    );
   }
 
-  const data = await res.json() as {
+  const data = (await res.json()) as {
     candidates?: { content: { parts: { text: string }[] } }[];
     error?: { message: string };
   };
@@ -233,7 +282,12 @@ Then output your scores wrapped exactly as shown — no JSON outside the tags:
 // ── Claude — drills + coach message ───────────────────────────────────────────
 async function getDrillsFromClaude(
   analysis: Record<string, unknown>,
-  params: { goal: string; years: string; coach: string; calibration: Calibration },
+  params: {
+    goal: string;
+    years: string;
+    coach: string;
+    calibration: Calibration;
+  },
   apiKey: string,
 ): Promise<{ drills: unknown[]; coachMessage: string }> {
   const cal = params.calibration;
@@ -282,10 +336,12 @@ Return only valid JSON with no markdown:
 
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`Claude drills request failed (${res.status}): ${body.slice(0, 200)}`);
+    throw new Error(
+      `Claude drills request failed (${res.status}): ${body.slice(0, 200)}`,
+    );
   }
 
-  const data = await res.json() as { content: { text: string }[] };
+  const data = (await res.json()) as { content: { text: string }[] };
   const text = data.content?.[0]?.text ?? "";
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error("No JSON in Claude drills response");
@@ -307,39 +363,73 @@ router.post(
   "/analyse-video",
   upload.single("video") as any,
   async (req: Request, res: any) => {
-    const geminiKey  = process.env["GEMINI_API_KEY"];
-    const claudeKey  = process.env["VITE_ANTHROPIC_API_KEY"];
+    const geminiKey = process.env["GEMINI_API_KEY"];
+    const claudeKey = process.env["VITE_ANTHROPIC_API_KEY"];
 
-    if (!geminiKey)  { res.status(500).json({ error: "GEMINI_API_KEY not configured" }); return; }
-    if (!claudeKey)  { res.status(500).json({ error: "VITE_ANTHROPIC_API_KEY not configured" }); return; }
-    if (!req.file)   { res.status(400).json({ error: "No video file provided" }); return; }
+    if (!geminiKey) {
+      res.status(500).json({ error: "GEMINI_API_KEY not configured" });
+      return;
+    }
+    if (!claudeKey) {
+      res.status(500).json({ error: "VITE_ANTHROPIC_API_KEY not configured" });
+      return;
+    }
+    if (!req.file) {
+      res.status(400).json({ error: "No video file provided" });
+      return;
+    }
 
-    const { goal = "", averageScore = "", years = "", coach = "", calibration: calStr = "" } = req.body as Record<string, string>;
+    const {
+      goal = "",
+      averageScore = "",
+      years = "",
+      coach = "",
+      calibration: calStr = "",
+    } = req.body as Record<string, string>;
     const calibration: Calibration = calStr ? JSON.parse(calStr) : {};
     const { buffer, mimetype } = req.file;
 
     try {
       // 1 — Upload video to Gemini Files API
-      console.log(`[analyse-video] Uploading ${(buffer.length / 1024 / 1024).toFixed(1)} MB (${mimetype}) to Gemini`);
-      console.log(`[analyse-video] Calibration data: ${JSON.stringify(calibration)}`);
+      console.log(
+        `[analyse-video] Uploading ${(buffer.length / 1024 / 1024).toFixed(1)} MB (${mimetype}) to Gemini`,
+      );
+      console.log(
+        `[analyse-video] Calibration data: ${JSON.stringify(calibration)}`,
+      );
       const fileUri = await uploadToGemini(buffer, mimetype, geminiKey);
       console.log(`[analyse-video] File ACTIVE → ${fileUri}`);
 
       // 2 — Full swing analysis via Gemini 2.5 Pro (video-native)
       console.log("[analyse-video] Requesting Gemini 2.5 Pro analysis");
-      const geminiText = await analyseWithGemini(fileUri, mimetype, { goal, averageScore, years, coach, calibration }, geminiKey);
+      const geminiText = await analyseWithGemini(
+        fileUri,
+        mimetype,
+        { goal, averageScore, years, coach, calibration },
+        geminiKey,
+      );
       console.log(`[analyse-video] FULL GEMINI RESPONSE:\n${geminiText}`);
       const analysis = extractResult(geminiText);
-      console.log(`[analyse-video] PARSED GEMINI RESULT:\n${JSON.stringify(analysis, null, 2)}`);
+      console.log(
+        `[analyse-video] PARSED GEMINI RESULT:\n${JSON.stringify(analysis, null, 2)}`,
+      );
 
       // 3 — Drills + personalised coaching message via Claude
       console.log("[analyse-video] Requesting Claude drills + coaching");
-      const extras = await getDrillsFromClaude(analysis, { goal, years, coach, calibration }, claudeKey);
-      console.log(`[analyse-video] CLAUDE DRILLS RESULT:\n${JSON.stringify(extras, null, 2)}`);
+      const extras = await getDrillsFromClaude(
+        analysis,
+        { goal, years, coach, calibration },
+        claudeKey,
+      );
+      console.log(
+        `[analyse-video] CLAUDE DRILLS RESULT:\n${JSON.stringify(extras, null, 2)}`,
+      );
 
       // 4 — Merge and respond
       const merged = { ...analysis, ...extras };
-      console.log(`[analyse-video] FINAL MERGED RESULT:\n${JSON.stringify(merged, null, 2)}`);
+      console.log(
+        `[analyse-video] FINAL MERGED RESULT:\n${JSON.stringify(merged, null, 2)}`,
+      );
       res.set("Cache-Control", "no-store, no-cache, must-revalidate");
       res.set("Pragma", "no-cache");
       res.set("Surrogate-Control", "no-store");
@@ -349,7 +439,7 @@ router.post(
       console.error("[analyse-video] Error:", msg);
       res.status(502).json({ error: msg });
     }
-  }
+  },
 );
 
 export default router;
