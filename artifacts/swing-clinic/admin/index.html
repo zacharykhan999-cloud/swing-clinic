@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Swing Clinic — Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <script src="/clerk.browser.js" data-clerk-publishable-key="pk_test_c3Rhci1zd2lmdC01Ni5jbGVyay5hY2NvdW50cy5kZXYk" async crossorigin="anonymous"></script>
+    <style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      :root {
+        --green: #00C46A;
+        --green-dim: #00843f;
+        --bg: #0d0d0d;
+        --surface: #161616;
+        --surface2: #1e1e1e;
+        --border: #2a2a2a;
+        --text: #f0f0f0;
+        --text-muted: #888;
+        --red: #ef4444;
+        --amber: #f59e0b;
+        --blue: #3b82f6;
+      }
+      html, body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100dvh; }
+
+      /* ── Gate screens ── */
+      .gate { display: none; position: fixed; inset: 0; align-items: center; justify-content: center; background: var(--bg); flex-direction: column; gap: 16px; text-align: center; padding: 24px; }
+      .gate.active { display: flex; }
+      .gate-icon { font-size: 3rem; }
+      .gate h2 { font-family: 'Bebas Neue', sans-serif; font-size: 2rem; letter-spacing: 1px; }
+      .gate p { color: var(--text-muted); max-width: 320px; }
+      .gate a { color: var(--green); text-decoration: none; font-weight: 600; }
+
+      /* ── Spinner ── */
+      .spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--green); border-radius: 50%; animation: spin 0.8s linear infinite; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+
+      /* ── Dashboard ── */
+      #dashboard { display: none; max-width: 1200px; margin: 0 auto; padding: 24px 20px 48px; }
+      #dashboard.active { display: block; }
+
+      .dash-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px; flex-wrap: wrap; gap: 12px; }
+      .dash-logo { display: flex; align-items: center; gap: 10px; }
+      .dash-logo svg { flex-shrink: 0; }
+      .dash-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.6rem; letter-spacing: 1px; line-height: 1; }
+      .dash-subtitle { font-size: 0.75rem; color: var(--text-muted); }
+      .dash-header-right { display: flex; align-items: center; gap: 12px; }
+      .refresh-btn { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 8px 16px; border-radius: 8px; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 0.85rem; font-weight: 500; transition: border-color 0.2s; }
+      .refresh-btn:hover { border-color: var(--green); color: var(--green); }
+      .last-updated { font-size: 0.75rem; color: var(--text-muted); }
+
+      /* ── Section label ── */
+      .section-label { font-family: 'Bebas Neue', sans-serif; font-size: 1rem; letter-spacing: 1.5px; color: var(--text-muted); margin: 28px 0 12px; }
+
+      /* ── Stat cards grid ── */
+      .stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+      .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px 22px; }
+      .stat-card.accent { border-color: var(--green-dim); background: linear-gradient(135deg, #0f1f17 0%, #161616 100%); }
+      .stat-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; }
+      .stat-value { font-family: 'Bebas Neue', sans-serif; font-size: 2.8rem; line-height: 1; color: var(--text); }
+      .stat-value.green { color: var(--green); }
+      .stat-value.amber { color: var(--amber); }
+      .stat-value.red { color: var(--red); }
+      .stat-sub { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; }
+
+      /* ── Killers grid ── */
+      .killers-list { display: flex; flex-direction: column; gap: 8px; }
+      .killer-row { display: flex; align-items: center; gap: 10px; }
+      .killer-bar-wrap { flex: 1; height: 6px; background: var(--border); border-radius: 99px; overflow: hidden; }
+      .killer-bar { height: 100%; border-radius: 99px; background: var(--green); transition: width 0.6s ease; }
+      .killer-name { font-size: 0.82rem; width: 160px; flex-shrink: 0; }
+      .killer-count { font-size: 0.82rem; color: var(--text-muted); width: 36px; text-align: right; flex-shrink: 0; }
+
+      /* ── Recent table ── */
+      .table-wrap { overflow-x: auto; border-radius: 14px; border: 1px solid var(--border); }
+      table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+      thead th { background: var(--surface2); padding: 12px 16px; text-align: left; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); font-weight: 600; white-space: nowrap; }
+      tbody tr { border-top: 1px solid var(--border); transition: background 0.15s; }
+      tbody tr:hover { background: var(--surface2); }
+      tbody td { padding: 12px 16px; vertical-align: middle; }
+      .score-badge { display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 26px; border-radius: 6px; font-weight: 700; font-size: 0.85rem; }
+      .score-badge.high { background: rgba(0,196,106,0.15); color: var(--green); }
+      .score-badge.mid  { background: rgba(245,158,11,0.15); color: var(--amber); }
+      .score-badge.low  { background: rgba(239,68,68,0.15); color: var(--red); }
+      .email-cell { font-size: 0.82rem; color: var(--text-muted); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .ts-cell { font-size: 0.78rem; color: var(--text-muted); white-space: nowrap; }
+      .goal-pill { display: inline-block; padding: 2px 8px; border-radius: 99px; background: var(--surface2); font-size: 0.72rem; color: var(--text-muted); border: 1px solid var(--border); }
+
+      /* ── Conversion strip ── */
+      .conv-strip { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px 20px; display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+      .conv-bar-outer { flex: 1; min-width: 200px; height: 10px; background: var(--border); border-radius: 99px; overflow: hidden; position: relative; }
+      .conv-bar-free   { position: absolute; left: 0; top: 0; height: 100%; background: var(--surface2); border: 1px solid var(--border); }
+      .conv-bar-report { position: absolute; top: 0; height: 100%; background: var(--amber); }
+      .conv-bar-pro    { position: absolute; top: 0; height: 100%; background: var(--green); }
+      .conv-legend { display: flex; gap: 16px; flex-wrap: wrap; }
+      .conv-legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; }
+      .conv-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+      .conv-rate-big { font-family: 'Bebas Neue', sans-serif; font-size: 2rem; color: var(--green); line-height: 1; }
+
+      @media (max-width: 600px) {
+        .stat-grid { grid-template-columns: 1fr 1fr; }
+        .killer-name { width: 120px; }
+        .dash-header { flex-direction: column; align-items: flex-start; }
+      }
+    </style>
+  </head>
+  <body>
+
+    <!-- Loading -->
+    <div id="gate-loading" class="gate active">
+      <div class="spinner"></div>
+      <p>Loading…</p>
+    </div>
+
+    <!-- Access denied -->
+    <div id="gate-denied" class="gate">
+      <div class="gate-icon">🔒</div>
+      <h2>Access Restricted</h2>
+      <p id="gate-denied-msg">This dashboard is only accessible to admins.</p>
+      <a href="/">← Back to Swing Clinic</a>
+    </div>
+
+    <!-- Dashboard -->
+    <div id="dashboard">
+
+      <div class="dash-header">
+        <div class="dash-logo">
+          <svg width="36" height="36" viewBox="0 0 64 64" fill="none">
+            <circle cx="32" cy="32" r="32" fill="#00C46A"/>
+            <path d="M20 44 Q28 20 44 18" stroke="#000" stroke-width="4" stroke-linecap="round" fill="none"/>
+            <circle cx="44" cy="18" r="5" fill="#000"/>
+          </svg>
+          <div>
+            <div class="dash-title">Swing Clinic — Admin</div>
+            <div class="dash-subtitle">Internal dashboard · Restricted access</div>
+          </div>
+        </div>
+        <div class="dash-header-right">
+          <span class="last-updated" id="last-updated"></span>
+          <button class="refresh-btn" id="refresh-btn">↺ Refresh</button>
+        </div>
+      </div>
+
+      <!-- Analyses -->
+      <div class="section-label">Analyses</div>
+      <div class="stat-grid">
+        <div class="stat-card accent">
+          <div class="stat-label">All Time</div>
+          <div class="stat-value green" id="s-all-time">—</div>
+          <div class="stat-sub">total analyses</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Today</div>
+          <div class="stat-value" id="s-today">—</div>
+          <div class="stat-sub">since midnight</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">This Week</div>
+          <div class="stat-value" id="s-week">—</div>
+          <div class="stat-sub">since Monday</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Avg Score</div>
+          <div class="stat-value green" id="s-avg">—</div>
+          <div class="stat-sub">out of 100</div>
+        </div>
+      </div>
+
+      <!-- Users -->
+      <div class="section-label">Users</div>
+      <div class="stat-grid">
+        <div class="stat-card accent">
+          <div class="stat-label">Total Users</div>
+          <div class="stat-value green" id="s-users">—</div>
+          <div class="stat-sub">signed up via Clerk</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Free</div>
+          <div class="stat-value" id="s-free">—</div>
+          <div class="stat-sub">no subscription</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Report</div>
+          <div class="stat-value amber" id="s-report">—</div>
+          <div class="stat-sub">report tier</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Pro</div>
+          <div class="stat-value green" id="s-pro">—</div>
+          <div class="stat-sub">pro tier</div>
+        </div>
+      </div>
+
+      <!-- Conversion -->
+      <div class="section-label">Conversion</div>
+      <div class="conv-strip">
+        <div>
+          <div class="stat-label">Conversion Rate</div>
+          <div class="conv-rate-big" id="s-conv">—%</div>
+          <div class="stat-sub" id="s-conv-sub">free → paid</div>
+        </div>
+        <div class="conv-bar-outer" id="conv-bar-outer">
+          <div class="conv-bar-free"   id="conv-bar-free"   style="width:100%"></div>
+          <div class="conv-bar-report" id="conv-bar-report" style="width:0%"></div>
+          <div class="conv-bar-pro"    id="conv-bar-pro"    style="width:0%"></div>
+        </div>
+        <div class="conv-legend">
+          <div class="conv-legend-item"><div class="conv-dot" style="background:var(--surface2);border:1px solid var(--border)"></div><span>Free</span></div>
+          <div class="conv-legend-item"><div class="conv-dot" style="background:var(--amber)"></div><span>Report</span></div>
+          <div class="conv-legend-item"><div class="conv-dot" style="background:var(--green)"></div><span>Pro</span></div>
+        </div>
+      </div>
+
+      <!-- Top Killers -->
+      <div class="section-label">Top Performance Killers</div>
+      <div class="stat-card" style="padding:20px 22px">
+        <div class="killers-list" id="killers-list">
+          <div style="color:var(--text-muted);font-size:0.85rem">Loading…</div>
+        </div>
+      </div>
+
+      <!-- Recent analyses -->
+      <div class="section-label">Recent Analyses</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>User</th>
+              <th>Score</th>
+              <th>Biggest Killer</th>
+              <th>Goal</th>
+            </tr>
+          </thead>
+          <tbody id="recent-tbody">
+            <tr><td colspan="5" style="padding:20px;color:var(--text-muted);text-align:center">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+
+    <script type="module" src="/src/admin.js"></script>
+  </body>
+</html>

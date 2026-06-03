@@ -6,6 +6,7 @@ import configRouter from "./config";
 import whopWebhookRouter from "./whop-webhook";
 import analysesRouter from "./analyses";
 import profileRouter from "./profile";
+import adminRouter from "./admin";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use(analyseVideoRouter);
 router.use(whopWebhookRouter);
 router.use(analysesRouter);
 router.use(profileRouter);
+router.use(adminRouter);
 
 export default router;
