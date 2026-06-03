@@ -442,6 +442,91 @@
       </div>
     </div>
 
+    <!-- ADMIN SCREEN -->
+    <div id="screen-admin" class="screen">
+      <div class="admin-wrap">
+        <div class="admin-header">
+          <div class="admin-logo-row">
+            <svg width="32" height="32" viewBox="0 0 64 64" fill="none">
+              <circle cx="32" cy="32" r="32" fill="#00C46A"/>
+              <path d="M20 44 Q28 20 44 18" stroke="#000" stroke-width="4" stroke-linecap="round" fill="none"/>
+              <circle cx="44" cy="18" r="5" fill="#000"/>
+            </svg>
+            <div>
+              <div class="admin-title">SWING CLINIC — ADMIN</div>
+              <div class="admin-subtitle">Internal dashboard</div>
+            </div>
+          </div>
+          <div class="admin-header-right">
+            <span class="admin-last-updated" id="admin-last-updated"></span>
+            <button class="admin-refresh-btn" id="admin-refresh-btn">↺ Refresh</button>
+          </div>
+        </div>
+
+        <!-- Top stat cards -->
+        <div class="admin-stat-grid">
+          <div class="admin-stat-card admin-stat-accent">
+            <div class="admin-stat-label">Total Users</div>
+            <div class="admin-stat-value" id="adm-users">—</div>
+            <div class="admin-stat-sub">signed up</div>
+          </div>
+          <div class="admin-stat-card admin-stat-accent">
+            <div class="admin-stat-label">Total Analyses</div>
+            <div class="admin-stat-value" id="adm-analyses">—</div>
+            <div class="admin-stat-sub">all time</div>
+          </div>
+          <div class="admin-stat-card">
+            <div class="admin-stat-label">Paid Users</div>
+            <div class="admin-stat-value admin-val-amber" id="adm-paid">—</div>
+            <div class="admin-stat-sub" id="adm-paid-sub">report + pro</div>
+          </div>
+          <div class="admin-stat-card">
+            <div class="admin-stat-label">Avg Score</div>
+            <div class="admin-stat-value" id="adm-avg">—</div>
+            <div class="admin-stat-sub">out of 100</div>
+          </div>
+          <div class="admin-stat-card">
+            <div class="admin-stat-label">Today</div>
+            <div class="admin-stat-value" id="adm-today">—</div>
+            <div class="admin-stat-sub">analyses today</div>
+          </div>
+          <div class="admin-stat-card">
+            <div class="admin-stat-label">Conversion</div>
+            <div class="admin-stat-value admin-val-green" id="adm-conv">—%</div>
+            <div class="admin-stat-sub">free → paid</div>
+          </div>
+        </div>
+
+        <!-- Common faults -->
+        <div class="admin-section-label">MOST COMMON FAULTS</div>
+        <div class="admin-card">
+          <div id="admin-faults-list" class="admin-faults-list">
+            <div class="admin-loading">Loading…</div>
+          </div>
+        </div>
+
+        <!-- Recent analyses feed -->
+        <div class="admin-section-label">RECENT ANALYSES</div>
+        <div class="admin-table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>User</th>
+                <th>Score</th>
+                <th>Biggest Fault</th>
+              </tr>
+            </thead>
+            <tbody id="admin-recent-tbody">
+              <tr><td colspan="4" class="admin-table-empty">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div style="height:40px"></div>
+      </div>
+    </div>
+
     <!-- BOTTOM NAV -->
     <nav class="bottom-nav" id="bottom-nav">
       <button class="nav-tab" data-tab="home">

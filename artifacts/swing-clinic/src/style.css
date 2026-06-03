@@ -1605,3 +1605,211 @@ body {
   font-size: 0.85rem;
   min-width: 72px;
 }
+
+/* ── Admin Dashboard ───────────────────────────── */
+#screen-admin {
+  background: var(--bg);
+  overflow-y: auto;
+}
+.admin-wrap {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px 16px 60px;
+}
+.admin-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+.admin-logo-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.admin-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.3rem;
+  letter-spacing: 1px;
+  line-height: 1.1;
+}
+.admin-subtitle {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+.admin-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.admin-last-updated {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+.admin-refresh-btn {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 7px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 500;
+  transition: border-color 0.2s, color 0.2s;
+}
+.admin-refresh-btn:hover { border-color: var(--green); color: var(--green); }
+.admin-refresh-btn:disabled { opacity: 0.5; cursor: default; }
+
+.admin-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 28px;
+}
+@media (max-width: 520px) {
+  .admin-stat-grid { grid-template-columns: repeat(2, 1fr); }
+}
+.admin-stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px 16px;
+}
+.admin-stat-accent {
+  border-color: rgba(0,196,106,0.3);
+  background: linear-gradient(135deg, #0f1f17 0%, #161616 100%);
+}
+.admin-stat-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+.admin-stat-value {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 2.4rem;
+  line-height: 1;
+  color: var(--green);
+}
+.admin-val-amber { color: #f59e0b; }
+.admin-val-green { color: var(--green); }
+.admin-stat-sub {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.admin-section-label {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 0.9rem;
+  letter-spacing: 2px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+.admin-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px 20px;
+  margin-bottom: 24px;
+}
+.admin-loading {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+/* Faults bar chart */
+.admin-faults-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.admin-fault-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.admin-fault-name {
+  width: 170px;
+  flex-shrink: 0;
+  font-size: 0.82rem;
+  color: var(--text);
+}
+.admin-fault-bar-wrap {
+  flex: 1;
+  height: 7px;
+  background: var(--border);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.admin-fault-bar {
+  height: 100%;
+  border-radius: 99px;
+  background: var(--green);
+  transition: width 0.5s ease;
+}
+.admin-fault-count {
+  width: 32px;
+  text-align: right;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+/* Recent analyses table */
+.admin-table-wrap {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow-x: auto;
+  margin-bottom: 24px;
+}
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.84rem;
+}
+.admin-table thead th {
+  background: var(--surface2);
+  padding: 11px 14px;
+  text-align: left;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.admin-table tbody tr {
+  border-top: 1px solid var(--border);
+  transition: background 0.15s;
+}
+.admin-table tbody tr:hover { background: var(--surface2); }
+.admin-table tbody td {
+  padding: 11px 14px;
+  vertical-align: middle;
+}
+.admin-table-empty {
+  padding: 20px;
+  color: var(--text-muted);
+  text-align: center;
+}
+.adm-score-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 24px;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 0.82rem;
+}
+.adm-score-high { background: rgba(0,196,106,0.15); color: var(--green); }
+.adm-score-mid  { background: rgba(245,158,11,0.15);  color: #f59e0b; }
+.adm-score-low  { background: rgba(239,68,68,0.15);   color: #ef4444; }
+.adm-email      { font-size: 0.78rem; color: var(--text-muted); max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.adm-time       { font-size: 0.75rem; color: var(--text-muted); white-space: nowrap; }
+.adm-fault      { font-size: 0.8rem; color: var(--text); }

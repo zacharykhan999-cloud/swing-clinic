@@ -27,19 +27,6 @@ if (!basePath) {
 export default defineConfig({
   base: basePath,
   plugins: [
-    {
-      name: "admin-redirect",
-      configureServer(server) {
-        server.middlewares.use((req: any, res: any, next: any) => {
-          if (req.url === "/admin") {
-            res.writeHead(302, { Location: "/admin/" });
-            res.end();
-            return;
-          }
-          next();
-        });
-      },
-    },
     runtimeErrorOverlay(),
     ...(process.env.NODE_ENV !== "production" &&
     process.env.REPL_ID !== undefined
@@ -59,12 +46,6 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
-    rollupOptions: {
-      input: {
-        main:  path.resolve(import.meta.dirname, "index.html"),
-        admin: path.resolve(import.meta.dirname, "admin/index.html"),
-      },
-    },
   },
   server: {
     port,

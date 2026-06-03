@@ -1,5 +1,95 @@
 // Clerk is loaded via <script> tag in index.html → window.Clerk
 
+// ── Admin ─────────────────────────────────────────
+const ADMIN_EMAIL = 'zacharykhan894@gmail.com';
+const IS_ADMIN_ROUTE = window.location.pathname === '/admin' || window.location.pathname === '/admin/';
+
+function admRelTime(iso) {
+  const d = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (d < 60) return `${d}s ago`;
+  if (d < 3600) return `${Math.floor(d / 60)}m ago`;
+  if (d < 86400) return `${Math.floor(d / 3600)}h ago`;
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
+
+function admRenderStats(data) {
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  set('adm-users',    data.users.total.toLocaleString());
+  set('adm-analyses', data.analyses.allTime.toLocaleString());
+  set('adm-paid',     data.users.paidTotal.toLocaleString());
+  set('adm-paid-sub', `${data.users.report} report · ${data.users.pro} pro`);
+  set('adm-avg',      data.avgScore ?? '—');
+  set('adm-today',    data.analyses.today.toLocaleString());
+  set('adm-conv',     data.users.conversionRate + '%');
+  set('admin-last-updated', 'Updated ' + new Date().toLocaleTimeString());
+
+  // Faults chart
+  const fl = document.getElementById('admin-faults-list');
+  if (fl) {
+    if (!data.topKillers.length) {
+      fl.innerHTML = '<div class="admin-loading">No data yet</div>';
+    } else {
+      const max = data.topKillers[0].count;
+      fl.innerHTML = data.topKillers.map(k => `
+        <div class="admin-fault-row">
+          <span class="admin-fault-name">${k.killer || 'Unknown'}</span>
+          <div class="admin-fault-bar-wrap"><div class="admin-fault-bar" style="width:${Math.round(k.count/max*100)}%"></div></div>
+          <span class="admin-fault-count">${k.count}</span>
+        </div>`).join('');
+    }
+  }
+
+  // Recent feed
+  const tbody = document.getElementById('admin-recent-tbody');
+  if (tbody) {
+    if (!data.recent.length) {
+      tbody.innerHTML = '<tr><td colspan="4" class="admin-table-empty">No analyses yet</td></tr>';
+    } else {
+      const cls = s => s >= 70 ? 'adm-score-high' : s >= 50 ? 'adm-score-mid' : 'adm-score-low';
+      tbody.innerHTML = data.recent.map(r => `
+        <tr>
+          <td class="adm-time">${admRelTime(r.timestamp)}</td>
+          <td class="adm-email" title="${r.email}">${r.email}</td>
+          <td><span class="adm-score-badge ${cls(r.overallScore)}">${r.overallScore}</span></td>
+          <td class="adm-fault">${r.biggestKiller || '—'}</td>
+        </tr>`).join('');
+    }
+  }
+}
+
+async function admLoadStats() {
+  const token = await clerkInstance?.session?.getToken();
+  const res = await fetch('/api/admin/stats', {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+async function initAdminDashboard() {
+  showScreen('screen-admin');
+  document.getElementById('admin-faults-list').innerHTML = '<div class="admin-loading">Loading…</div>';
+  document.getElementById('admin-recent-tbody').innerHTML = '<tr><td colspan="4" class="admin-table-empty">Loading…</td></tr>';
+
+  try {
+    const stats = await admLoadStats();
+    admRenderStats(stats);
+  } catch (err) {
+    document.getElementById('admin-recent-tbody').innerHTML =
+      `<tr><td colspan="4" class="admin-table-empty" style="color:#ef4444">Error: ${err.message}</td></tr>`;
+  }
+
+  document.getElementById('admin-refresh-btn')?.addEventListener('click', async () => {
+    const btn = document.getElementById('admin-refresh-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Loading…'; }
+    try { admRenderStats(await admLoadStats()); } catch { /* silent */ }
+    if (btn) { btn.disabled = false; btn.textContent = '↺ Refresh'; }
+  });
+}
+
 // ── State ────────────────────────────────────────
 const state = {
   goal: null,
@@ -775,20 +865,43 @@ async function initClerk() {
     });
 
     if (clerkInstance.user) {
+      const email = clerkInstance.user.primaryEmailAddress?.emailAddress ?? '';
+      if (IS_ADMIN_ROUTE) {
+        if (email.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+          window.location.replace('/');
+          return;
+        }
+        await initAdminDashboard();
+        return;
+      }
       syncTierFromClerk(clerkInstance.user);
-      state.userEmail = clerkInstance.user.primaryEmailAddress?.emailAddress;
+      state.userEmail = email;
       updateUserBadge();
       await Promise.all([loadProfileFromServer(), loadAnalysesFromServer()]);
       showScreen('screen-splash');
     } else {
-      showScreen('screen-auth');
+      if (IS_ADMIN_ROUTE) {
+        showScreen('screen-auth');
+        // after sign-in, re-check for admin
+      } else {
+        showScreen('screen-auth');
+      }
     }
 
     clerkInstance.addListener(async ({ user }) => {
       if (user) {
+        const email = user.primaryEmailAddress?.emailAddress ?? '';
+        if (IS_ADMIN_ROUTE) {
+          if (email.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+            window.location.replace('/');
+            return;
+          }
+          await initAdminDashboard();
+          return;
+        }
         syncTierFromClerk(user);
         if (document.getElementById('screen-auth')?.classList.contains('active')) {
-          state.userEmail = user.primaryEmailAddress?.emailAddress;
+          state.userEmail = email;
           updateUserBadge();
           await Promise.all([loadProfileFromServer(), loadAnalysesFromServer()]);
           showScreen('screen-splash');
