@@ -1019,6 +1019,24 @@ function updateUserBadge() {
   }
 }
 
+// ── App Loading Overlay ───────────────────────────
+function hideAppLoading() {
+  const el = document.getElementById("app-loading");
+  if (!el) return;
+  el.classList.add("fade-out");
+  setTimeout(() => el.remove(), 280);
+}
+
+// Pre-fills the saved email so returning users don't have to retype on re-auth.
+function showAuthScreen() {
+  const saved = localStorage.getItem("sc_auth_email");
+  if (saved) {
+    const input = document.getElementById("auth-email");
+    if (input) input.value = saved;
+  }
+  showScreen("screen-auth");
+}
+
 // ── Clerk Auth ────────────────────────────────────
 let clerkInstance = null;
 
@@ -1033,12 +1051,25 @@ async function initClerk() {
       publishableKey = cfg.clerkPublishableKey;
     }
 
+    // Without a proxyUrl Clerk makes auth requests directly to clerk.dev, a
+    // third-party domain. Modern browsers block third-party cookies, so the
+    // session cookie is never stored and users must re-verify on every visit.
+    // Routing through /api/__clerk (same origin) makes it first-party so the
+    // cookie persists across page loads and the 30-day session is honoured.
+    let proxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
+    if (!proxyUrl) {
+      const h = window.location.hostname;
+      if (h !== "localhost" && h !== "127.0.0.1" && !h.startsWith("192.168.")) {
+        proxyUrl = `${window.location.origin}/api/__clerk`;
+      }
+    }
+
     // In Clerk 6.x, the browser bundle exposes window.Clerk as a singleton instance.
     // Call .load() on it (do NOT use new window.Clerk()).
     clerkInstance = window.Clerk;
     await clerkInstance.load({
       publishableKey,
-      proxyUrl: import.meta.env.VITE_CLERK_PROXY_URL || undefined,
+      proxyUrl: proxyUrl || undefined,
       appearance: {
         variables: {
           colorPrimary: "#00C46A",
@@ -1063,6 +1094,7 @@ async function initClerk() {
           return;
         }
         await initAdminDashboard();
+        hideAppLoading();
         return;
       }
       syncTierFromClerk(clerkInstance.user);
@@ -1070,13 +1102,10 @@ async function initClerk() {
       updateUserBadge();
       await Promise.all([loadProfileFromServer(), loadAnalysesFromServer()]);
       showScreen("screen-splash");
+      hideAppLoading();
     } else {
-      if (IS_ADMIN_ROUTE) {
-        showScreen("screen-auth");
-        // after sign-in, re-check for admin
-      } else {
-        showScreen("screen-auth");
-      }
+      showAuthScreen();
+      hideAppLoading();
     }
 
     clerkInstance.addListener(async ({ user }) => {
@@ -1112,7 +1141,8 @@ async function initClerk() {
       String(err);
     console.error("Clerk init error:", msg, err);
     // Do NOT bypass auth on Clerk load failure — show auth screen so the user can retry
-    showScreen("screen-auth");
+    showAuthScreen();
+    hideAppLoading();
   }
 }
 
@@ -1127,7 +1157,7 @@ document.getElementById("sign-out-btn")?.addEventListener("click", async () => {
     state.coach = null;
     window._swingClinicTier = null;
     resetAuthForm();
-    showScreen("screen-auth");
+    showAuthScreen();
   }
 });
 
@@ -1184,6 +1214,8 @@ document
       return authError("auth-email-error", "Please enter your email address.");
     authErrorClear("auth-email-error");
     setAuthLoading("auth-email-btn", true);
+    // Persist email so it auto-fills if the session ever expires
+    localStorage.setItem("sc_auth_email", email);
 
     try {
       // Try sign-in first (existing user)
@@ -1808,7 +1840,7 @@ document
       state.analyses = [];
       window._swingClinicTier = null;
       resetAuthForm();
-      showScreen("screen-auth");
+      showAuthScreen();
     }
   });
 
