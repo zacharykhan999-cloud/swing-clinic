@@ -170,6 +170,8 @@ ${buildCalibrationBlock(params.calibration)}
 
 Watch the entire golf swing video carefully from start to finish — you have access to the full continuous motion, not just still frames.
 
+⚠️ SLOW MOTION NOTE: This video may be filmed in slow motion for analysis purposes. Slow motion does not indicate poor tempo — assess tempo as if the swing is at normal speed. Do not penalise slow motion footage.
+
 ━━━ STEP 1 — PHASE-BY-PHASE ANALYSIS (required before scoring) ━━━
 Describe what you observe in each phase of the swing. Be specific about angles, positions, and timing:
 
