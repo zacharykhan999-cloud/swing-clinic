@@ -101,23 +101,32 @@ type Calibration = {
   sevenIronDistance?: string;
 };
 
+// Exact values as sent by the frontend form (title-case, with units where present)
+export function isEliteCalibration(cal: Calibration): boolean {
+  return (
+    cal.sliceFrequency === "Rarely" &&
+    cal.sevenIronDistance === "150+ yards" &&
+    cal.balanceLoss === "No" &&
+    cal.fatShots === "Rarely"
+  );
+}
+
 function buildCalibrationBlock(cal: Calibration): string {
-  // Derive a calibration tier so hard limits can reference it explicitly
-  const sliceRarely =
-    cal.sliceFrequency === "rarely" || cal.sliceFrequency === "never";
-  const noBalance = cal.balanceLoss === "rarely" || cal.balanceLoss === "never";
+  // Values from form are title-case ("Rarely", "No", "150+ yards", etc.)
+  const sliceRarely = cal.sliceFrequency === "Rarely";
+  const noBalance = cal.balanceLoss === "No" || cal.balanceLoss === "Rarely";
   const longIron =
-    cal.sevenIronDistance === "150+" || cal.sevenIronDistance === "170+";
-  const alwaysSlice =
-    cal.sliceFrequency === "always" || cal.sliceFrequency === "often";
-  const loseBalance =
-    cal.balanceLoss === "always" || cal.balanceLoss === "often";
+    cal.sevenIronDistance === "150+ yards" ||
+    cal.sevenIronDistance === "130–150 yards";
+  const alwaysSlice = cal.sliceFrequency === "Always";
+  const loseBalance = cal.balanceLoss === "Yes";
   const shortIron =
-    cal.sevenIronDistance === "under 100" ||
-    cal.sevenIronDistance === "100-130";
+    cal.sevenIronDistance === "Under 100 yards" ||
+    cal.sevenIronDistance === "100–130 yards";
 
   const isProProfile = sliceRarely && noBalance && longIron;
   const isBeginProfile = alwaysSlice && loseBalance && shortIron;
+  const isElite = isEliteCalibration(cal);
 
   return `━━━ CALIBRATION DATA ━━━
 The golfer answered these self-assessment questions before submitting their video:
@@ -129,11 +138,12 @@ Fat shots (hitting ground before ball): ${cal.fatShots ?? "Not provided"}
 7 iron distance: ${cal.sevenIronDistance ?? "Not provided"}
 
 HARD SCORE FLOOR/CEILING — enforce these before finalising any score:
-- Beginner profile (always/often slices + loses balance + under 130 yards): overallScore CANNOT exceed 45
+- Beginner profile (always slices + loses balance + under 130 yards): overallScore CANNOT exceed 45
 - Mid-handicap profile (sometimes slices + sometimes loses balance + 100–150 yards): overallScore 45–74
 - Low/scratch profile (rarely slices + rarely loses balance + 150+ yards): overallScore at minimum 75
-- Tour/professional profile (never/rarely slices + never/rarely loses balance + 170+ yards): overallScore at minimum 88
-${isProProfile ? "\n⚠️  ACTIVE LIMIT: This golfer's answers match a TOUR/PRO profile. overallScore MUST be 88 or higher if the video confirms professional mechanics. Do NOT score below 88 unless you observe a clear, disqualifying fault in the video." : ""}
+- Tour/professional profile (rarely/never slices + no balance loss + 150+ yards): overallScore 82–92
+${isElite ? "\n🔴 ELITE CALIBRATION ACTIVE: This golfer's self-assessment (rarely slices, 150+ yards, no balance loss, rarely fat) matches a scratch/tour profile. The server will enforce overallScore 82–92. Set your score within this range — do not score below 82." : ""}
+${isProProfile && !isElite ? "\n⚠️  ACTIVE LIMIT: This golfer's answers match a TOUR/PRO profile. overallScore MUST be 88 or higher if the video confirms professional mechanics." : ""}
 ${isBeginProfile ? "\n⚠️  ACTIVE LIMIT: This golfer's answers match a BEGINNER profile. overallScore CANNOT exceed 45." : ""}
 
 Cross-reference these limits with what you observe in the video before finalising.`;
@@ -424,6 +434,20 @@ router.post(
       console.log(
         `[analyse-video] PARSED GEMINI RESULT:\n${JSON.stringify(analysis, null, 2)}`,
       );
+
+      // Server-side elite calibration override — runs regardless of what Gemini scored.
+      // Calibration answers (rarely slices, 150+ yards, no balance loss, rarely fat)
+      // are a more reliable signal than Gemini's visual detection at this point.
+      if (isEliteCalibration(calibration)) {
+        const raw = Number(analysis.overallScore);
+        if (!isNaN(raw)) {
+          const clamped = Math.max(82, Math.min(92, raw));
+          console.log(
+            `[analyse-video] Elite calibration clamp: ${raw} → ${clamped}`,
+          );
+          analysis.overallScore = clamped;
+        }
+      }
 
       // 3 — Drills + personalised coaching message via Claude
       console.log("[analyse-video] Requesting Claude drills + coaching");
