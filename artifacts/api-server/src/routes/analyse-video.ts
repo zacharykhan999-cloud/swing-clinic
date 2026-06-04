@@ -191,7 +191,7 @@ VISUAL CHECKLIST — answer YES or NO from your phase observations, then apply t
 5. Smooth, consistent tempo with no lurching or rushing?
 
 Score floors from checklist:
-- 5/5 YES → overallScore MUST be 88–96 (professional band)
+- 5/5 YES → overallScore MUST be 88–95 (professional band — see ELITE OVERRIDE below)
 - 4/5 YES → overallScore MUST exceed 80
 - 3/5 YES → overallScore 65–80
 - 2/5 YES → overallScore 45–65
@@ -199,6 +199,17 @@ Score floors from checklist:
 
 These floors are MANDATORY. You may not score below the floor the checklist dictates.
 The calibration hard limits above also apply — use whichever floor is higher.
+
+⛳ ELITE PROFESSIONAL OVERRIDE — this rule overrides ALL other scoring factors:
+If the swing displays ALL of the following elite professional characteristics:
+  • Club travels on-plane or barely off-plane throughout the entire swing
+  • Shoulder turn is clearly 90 degrees or greater at the top of the backswing
+  • Complete, visible weight transfer — fully on the lead side through impact
+  • Balanced, controlled finish held without stumbling or falling
+  • Smooth, consistent tempo with no rushing, lurching, or deceleration
+THEN the overallScore MUST be between 88 and 95. No exceptions.
+This range reflects the best amateur and tour professional swings. Rory McIlroy, Tiger Woods, and comparable tour professionals must NEVER score below 88 — any analysis that scores such a swing lower has made an error.
+If you identify a swing as elite/professional quality, state it explicitly in your phase analysis and confirm the override is active.
 
 For reference, the golfer stated their average score is: ${params.averageScore || "unknown"} (treat as supplementary context only, not a scoring input).
 
