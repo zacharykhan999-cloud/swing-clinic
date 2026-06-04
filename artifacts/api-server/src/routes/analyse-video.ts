@@ -99,6 +99,7 @@ type Calibration = {
   balanceLoss?: string;
   fatShots?: string;
   sevenIronDistance?: string;
+  clubType?: string;
 };
 
 // Exact values as sent by the frontend form (title-case, with units where present)
@@ -171,6 +172,71 @@ ${buildCalibrationBlock(params.calibration)}
 Watch the entire golf swing video carefully from start to finish — you have access to the full continuous motion, not just still frames.
 
 ⚠️ SLOW MOTION NOTE: This video may be filmed in slow motion for analysis purposes. Slow motion does not indicate poor tempo — assess tempo as if the swing is at normal speed. Do not penalise slow motion footage.
+
+━━━ CLUB-SPECIFIC ANALYSIS RULES — you are analysing a ${params.calibration.clubType || "unknown"} swing. Apply these exact standards: ━━━
+
+DRIVER:
+- Stance should be wider than shoulder width
+- Ball position should be forward — off the lead heel
+- Attack angle should be UPWARD (positive angle of attack) — hitting up on the ball is CORRECT for driver, do not penalise this
+- Swing plane should be flatter and more around the body
+- Hip turn should be aggressive and full
+- Tee height will be visible — ball above club face at address is correct
+- Follow through should be full and high
+- Do NOT penalise a wide arc or shallow approach — this is correct driver technique
+- Score swing plane 80+ if the club is on a flat inside-out path
+
+3-WOOD / FAIRWAY WOOD:
+- Slightly steeper than driver
+- Ball position just inside lead heel
+- Slight downward or level attack angle is correct
+- Wider stance than irons but narrower than driver
+- Full shoulder turn required
+
+HYBRID:
+- Similar to long iron but more forgiving setup
+- Ball position centre to slightly forward
+- Moderate swing plane
+- Sweeping motion is correct — do not penalise shallow divot
+
+LONG IRON (2-4 iron):
+- Ball position slightly forward of centre
+- Requires full shoulder turn and hip rotation for power
+- Swing plane moderate — not too steep
+- Thin divot after impact is correct
+- Demands good sequencing — penalise heavily if rotation is poor
+
+MID IRON (5-7 iron):
+- Ball position centre to slightly forward
+- Standard swing plane
+- Divot after ball is correct and expected — do not penalise
+- Shaft lean forward at impact is correct
+- Moderate follow through
+
+SHORT IRON (8-9 iron):
+- Ball position centre or slightly back
+- Steeper swing plane is correct — do not penalise
+- Larger divot after ball is correct and expected
+- Shorter follow through than longer clubs is NORMAL — do not penalise
+- More shaft lean at impact
+
+WEDGE (PW/SW/LW):
+- Narrower stance
+- Ball position centre or back
+- Very steep swing plane — this is CORRECT, do not penalise
+- Large divot is expected and correct
+- Shorter more controlled follow through is NORMAL
+- Open face at address for lob/flop shots is correct
+- Assess control and precision over power
+
+PUTTER:
+- Completely ignore swing plane, rotation, weight transfer, hip turn — these are IRRELEVANT for putting
+- Only assess: alignment to target, stroke path (straight back straight through or slight arc both correct), face angle at impact, head stillness, follow through length matches backswing
+- Score setup and alignment heavily
+- Smooth consistent tempo is the only tempo metric that matters
+- Overall score for putting should reflect stroke consistency not full swing mechanics
+
+CRITICAL: Apply ONLY the rules for the ${params.calibration.clubType || "unknown"} being used. Do not apply full swing standards to a wedge or putter. Do not penalise correct technique for the specific club selected.
 
 ━━━ STEP 1 — PHASE-BY-PHASE ANALYSIS (required before scoring) ━━━
 Describe what you observe in each phase of the swing. Be specific about angles, positions, and timing:
